@@ -302,10 +302,18 @@ variável que mais cresce.
 
 ## O que este roteiro deliberadamente não faz
 
-**Não migra a loja atual para uma instância nova de WhatsApp.** A sapataria
-continua com `EVOLUTION_API_INSTANCE` apontando para a instância já pareada.
-Trocar significaria parear o número de novo, e não há motivo: o provisionamento
-existe para os **próximos** assinantes.
+**~~Não migra a loja atual para uma instância nova de WhatsApp.~~**
+
+> **Correção — isto estava errado.** Valia para o modo formulario, onde a
+> instância vem de `EVOLUTION_API_INSTANCE`. **No modo portal o sistema ignora
+> essa variável** e usa a instância que o Portal provisionou.
+>
+> Ou seja: o passo 6 **migra sim** a loja para uma instância nova, que nasce
+> **sem número pareado**. Entre o reinício e o pareamento, a loja fica sem
+> enviar WhatsApp. Planeje para fora do horário de movimento, com o telefone
+> da loja em mãos.
+>
+> Verificado na implantação de 22/09/2026, lendo o `ResolvedorDaLoja`.
 
 **Não automatiza o provisionamento na contratação.** É um botão na tela. Falhar
 no provisionamento não deveria impedir a venda, e o erro precisa ser visível
@@ -314,6 +322,45 @@ para quem vende.
 **Não liga cobrança.** Continua no WhatsApp, com renovação pela tela de
 administração — que avisa sete dias antes do vencimento. A etapa 3 resolve
 isso.
+
+---
+
+---
+
+## Lições da primeira implantação
+
+### O pareamento é parte do passo 6, não um detalhe
+
+A instância provisionada nasce vazia. A sequência que fecha a janela é:
+reiniciar em modo portal → entrar pelo Portal → **WhatsApp → QR Code** →
+escanear. A tela do sistema já mostra o QR da instância certa.
+
+### Apagar instância na Evolution tem consequência dos dois lados
+
+Durante a implantação, as instâncias foram apagadas direto na Evolution. Isso
+revelou que o Portal continuava entregando o nome e o token de uma instância
+que já não existia, **sem caminho de recuperação pela tela** — o botão ficava
+escondido justamente quando o estado era "ativo".
+
+Corrigido: o botão passou a se chamar **Reprovisionar** e fica sempre
+disponível; o serviço confere na Evolution antes de devolver o registro
+guardado e recria se ela sumiu. Clicar numa instância saudável não faz nada.
+
+### A chave global deve sair do sistema vendido
+
+`EVOLUTION_API_KEY` não é usada em modo portal, e **o código deixou de cair
+para ela** mesmo se estiver configurada: faltando o token da instância, o
+envio é recusado com explicação, em vez de usar uma credencial com poder sobre
+todas as instâncias de todos os assinantes.
+
+Remova a variável do Coolify depois de ligar o modo portal. Ela continua
+necessária para o modo formulario.
+
+### `--ARGS` não faz relaxed binding
+
+`--APP_LOJA_NOME=x` não preenche `app.loja.nome`; **variável de ambiente
+preenche**. No Coolify isso não aparece, porque ele entrega variáveis de
+ambiente de verdade — mas custa tempo em diagnóstico local.
 
 ---
 
