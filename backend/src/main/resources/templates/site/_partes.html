@@ -1,0 +1,57 @@
+<!--
+  Cabeçalho e rodapé compartilhados pelas páginas da vitrine.
+
+  Ficam aqui porque duas cópias do mesmo rodapé divergem — e o rodapé é
+  justamente onde moram CNPJ e telefone, os dados que não podem estar
+  desatualizados numa página e certos na outra.
+-->
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<header th:fragment="cabecalho" class="cabecalho">
+  <div class="cabecalho-interno">
+    <a class="logotipo" th:href="@{/}">Drlog<span class="ponto">.</span></a>
+    <nav class="cabecalho-acoes">
+      <a class="elo-discreto" th:href="@{/}">Sistemas</a>
+      <a class="elo-discreto" th:href="@{/login}">Entrar</a>
+    </nav>
+  </div>
+</header>
+
+<!--
+  Cada bloco só aparece se tiver conteúdo. Sem essa guarda, uma variável de
+  ambiente não preenchida deixa o título "Falar com a gente" sozinho, sem
+  telefone embaixo — pior que não ter a seção.
+-->
+<footer th:fragment="rodape" class="rodape">
+  <div class="envelope rodape-grade">
+
+    <div class="rodape-dados"
+         th:if="${empresa.razaoSocial != null or empresa.cnpj != null or empresa.endereco != null}">
+      <b th:if="${empresa.razaoSocial}" th:text="${empresa.razaoSocial}">Razão Social</b>
+      <p th:if="${empresa.cnpj}" th:text="'CNPJ ' + ${empresa.cnpj}">CNPJ</p>
+      <p th:if="${empresa.endereco}" th:text="${empresa.endereco}">Endereço</p>
+    </div>
+
+    <div class="rodape-dados"
+         th:if="${empresa.whatsappLink != null or empresa.email != null}">
+      <b>Falar com a gente</b>
+      <p th:if="${empresa.whatsappLink}">
+        <a th:href="${empresa.whatsappLink}" th:text="${empresa.whatsappExibicao}">WhatsApp</a>
+      </p>
+      <p th:if="${empresa.email}">
+        <a th:href="'mailto:' + ${empresa.email}" th:text="${empresa.email}">e-mail</a>
+      </p>
+    </div>
+
+    <div class="rodape-dados">
+      <b>Assinantes</b>
+      <p><a th:href="@{/login}">Entrar no painel</a></p>
+    </div>
+
+  </div>
+</footer>
+
+</body>
+</html>

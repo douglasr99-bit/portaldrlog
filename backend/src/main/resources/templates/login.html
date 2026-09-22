@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Acesso ao Portal Drlog">
+  <meta name="theme-color" content="#0B1220">
+  <title>Entrar — Portal Drlog</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="stylesheet" th:href="@{/css/portal.css}">
+</head>
+<body>
+
+  <main class="tela-centro">
+    <div class="cartao-login">
+
+      <div class="marca">
+        <div class="marca-nome">Drlog</div>
+        <div class="marca-sub">Portal de sistemas</div>
+        <div class="marca-linha"></div>
+      </div>
+
+      <div class="alerta alerta-erro"  th:if="${erro}"  role="alert" th:text="${erro}"></div>
+      <div class="alerta alerta-aviso" th:if="${aviso}" role="status" th:text="${aviso}"></div>
+
+      <form th:action="@{/login}" method="post" autocomplete="on">
+        <div class="campo">
+          <label class="rotulo" for="email">E-mail</label>
+          <input class="entrada" type="email" id="email" name="email"
+                 autocomplete="username" autocapitalize="none" spellcheck="false"
+                 required autofocus>
+        </div>
+
+        <div class="campo">
+          <label class="rotulo" for="senha">Senha</label>
+          <input class="entrada" type="password" id="senha" name="senha"
+                 autocomplete="current-password" required>
+        </div>
+
+        <button class="botao botao-primario botao-bloco" type="submit">Entrar</button>
+      </form>
+
+      <p class="rodape-login">Acesso restrito a assinantes</p>
+    </div>
+  </main>
+
+</body>
+</html>

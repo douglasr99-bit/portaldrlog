@@ -1,0 +1,687 @@
+/* ==========================================================================
+   VITRINE — Portal Drlog
+
+   Direção: a prova vem primeiro. A primeira coisa que a pessoa vê é o
+   sistema funcionando, não uma frase de efeito.
+
+   Três decisões que sustentam o resto:
+
+   1. Fundo claro e quente. As capturas do Styllus são escuras; numa página
+      escura elas se dissolvem no fundo. Aqui elas viram a única massa escura
+      da tela, e o olho vai direto para o produto.
+
+   2. Serifa de display no lugar da grotesca de sempre. Página de SaaS usa
+      Inter em tudo; isso é parte do que faz uma parecer igual à outra.
+
+   3. Nada de ornamento importado: sem gradiente, sem sombra difusa, sem
+      canto muito arredondado, sem emoji fazendo papel de ícone. A separação
+      é feita por fio de 1px e por espaço, como em página impressa.
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap');
+
+:root {
+  /* Papel quente, não branco puro: branco puro em tela grande cansa e é a
+     cara de template. */
+  --papel:      #F4F0E9;
+  --papel-2:    #EAE4D9;
+  --papel-3:    #E0D8CA;
+
+  --tinta:      #17130F;
+  --tinta-2:    #4C433A;
+  --tinta-3:    #8B8073;
+
+  /* Couro queimado. Escolhido por ser raro em software e por pertencer ao
+     universo de quem trabalha com as mãos, sem ser literal. */
+  --acento:     #A8391B;
+  --acento-2:   #C4502C;
+
+  --verde:      #2F6B3F;
+  --linha:      #D6CCBC;
+
+  --serifa:     'Instrument Serif', 'Iowan Old Style', Georgia, serif;
+  --texto:      'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  --raio:       3px;
+  --coluna:     1180px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--papel);
+  color: var(--tinta);
+  font-family: var(--texto);
+  font-size: 17px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a { color: inherit; }
+
+.envelope { max-width: var(--coluna); margin: 0 auto; padding: 0 28px; }
+
+/* Fora da vista, mas lido por leitor de tela e indexado. Não usa
+   display:none nem visibility:hidden, que o removeriam também deles. */
+.oculto-visual {
+  position: absolute; width: 1px; height: 1px;
+  margin: -1px; padding: 0; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+
+/* ---------- rótulos de seção ----------
+   Pequenos, espaçados, com um fio que atravessa o resto da linha. É o que
+   dá ritmo de publicação em vez de ritmo de landing page. */
+
+.rotulo {
+  display: flex; align-items: center; gap: 16px;
+  font-size: 11.5px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .16em;
+  color: var(--tinta-3);
+  margin-bottom: 28px;
+}
+.rotulo::after {
+  content: ''; flex: 1; height: 1px; background: var(--linha);
+}
+.rotulo .contagem { color: var(--tinta-2); letter-spacing: .08em; }
+
+/* ---------- cabeçalho ---------- */
+
+.cabecalho {
+  border-bottom: 1px solid var(--linha);
+  position: sticky; top: 0; z-index: 20;
+  background: rgba(244, 240, 233, 0.92);
+  backdrop-filter: saturate(140%) blur(8px);
+}
+.cabecalho-interno {
+  max-width: var(--coluna); margin: 0 auto; padding: 14px 28px;
+  display: flex; align-items: center; justify-content: space-between; gap: 20px;
+}
+.logotipo {
+  font-family: var(--serifa); font-size: 40px; line-height: 1;
+  letter-spacing: -.015em; text-decoration: none;
+}
+.logotipo .ponto { color: var(--acento); }
+.cabecalho-acoes { display: flex; align-items: center; gap: 22px; }
+.elo-discreto {
+  font-size: 14px; font-weight: 500; color: var(--tinta-2);
+  text-decoration: none; padding-bottom: 2px;
+  border-bottom: 1px solid transparent;
+}
+.elo-discreto:hover { color: var(--tinta); border-bottom-color: var(--tinta); }
+
+/* ---------- abertura ----------
+   Só o posicionamento da empresa. A prova mudou de lugar: agora vem logo
+   abaixo, um sistema por envelope. */
+
+.abertura { padding: 40px 0 30px; }
+
+
+.carimbo {
+  display: inline-flex; align-items: center; gap: 9px;
+  font-size: 12px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .13em;
+  color: var(--verde); margin-bottom: 16px;
+}
+.carimbo::before {
+  content: ''; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--verde);
+}
+
+/* A vaga reservada não está "em produção": o verde diria o contrário.
+   Precisa vir DEPOIS de .carimbo — mesma especificidade, quem está por
+   último no arquivo vence. */
+.carimbo-neutro { color: var(--tinta-3); }
+.carimbo-neutro::before { background: var(--tinta-3); }
+
+.chamada {
+  font-family: var(--serifa); font-weight: 400;
+  /* Sem max-width e num corpo menor que antes: agora a frase é a tarja de
+     posicionamento acima dos sistemas, não mais o herói da página. Cabe numa
+     linha na largura do envelope, e o carrossel sobe para a primeira tela. */
+  font-size: clamp(30px, 3.9vw, 47px);
+  line-height: 1.06; letter-spacing: -.02em;
+  margin-bottom: 16px;
+}
+.chamada em { font-style: italic; color: var(--acento); }
+
+.abertura-texto {
+  font-size: 16.5px; line-height: 1.58; color: var(--tinta-2);
+  max-width: 74ch;
+}
+.abertura-texto strong { color: var(--tinta); font-weight: 600; }
+
+.moldura {
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  background: #0F1923;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(23,19,15,.06), 0 12px 34px -18px rgba(23,19,15,.4);
+}
+.moldura img { display: block; width: 100%; height: auto; }
+
+.legenda {
+  font-size: 12.5px; color: var(--tinta-3);
+  margin-top: 11px; letter-spacing: .01em;
+}
+
+/* ---------- catálogo ----------
+   Fichas numa lista, separadas por fio — como índice de catálogo. Não é
+   grade de três cards: com um sistema no ar, três cards obrigariam a
+   inventar dois. */
+
+.catalogo { padding: 84px 0 0; }
+
+.ficha {
+  display: grid;
+  grid-template-columns: 54px 1fr auto;
+  gap: 32px; align-items: start;
+  padding: 34px 0;
+  border-top: 1px solid var(--linha);
+  text-decoration: none;
+}
+.ficha:last-of-type { border-bottom: 1px solid var(--linha); }
+.ficha:hover .ficha-nome { color: var(--acento); }
+.ficha:hover .ficha-seta { transform: translateX(4px); color: var(--acento); }
+
+.ficha-numero {
+  font-family: var(--serifa); font-size: 30px; line-height: 1;
+  color: var(--tinta-3); padding-top: 4px;
+}
+.ficha-nome {
+  font-family: var(--serifa); font-size: 31px; line-height: 1.12;
+  letter-spacing: -.012em; margin-bottom: 8px;
+  transition: color .15s;
+}
+.ficha-resumo {
+  font-size: 16px; color: var(--tinta-2); max-width: 56ch; line-height: 1.55;
+}
+.ficha-marcas { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 15px; }
+.marca-tec {
+  font-size: 11.5px; font-weight: 500; letter-spacing: .04em;
+  color: var(--tinta-2); background: var(--papel-2);
+  border: 1px solid var(--linha); border-radius: var(--raio);
+  padding: 3px 9px;
+}
+
+.ficha-direita { text-align: right; min-width: 150px; }
+.preco {
+  font-size: 27px; font-weight: 600; letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+}
+.preco-ciclo { font-size: 13px; color: var(--tinta-3); margin-top: 1px; }
+.ficha-seta {
+  display: inline-block; margin-top: 15px;
+  font-size: 14px; font-weight: 600; color: var(--tinta-2);
+  transition: transform .15s, color .15s;
+}
+
+.nota-catalogo {
+  font-size: 15px; color: var(--tinta-3);
+  margin-top: 26px; max-width: 62ch;
+}
+
+/* ---------- página do produto ---------- */
+
+.volta {
+  display: inline-block; font-size: 13.5px; color: var(--tinta-3);
+  text-decoration: none; padding: 34px 0 0;
+}
+.volta:hover { color: var(--acento); }
+
+.produto-topo {
+  display: grid; grid-template-columns: 1fr auto;
+  gap: 48px; align-items: end;
+  padding: 26px 0 40px; border-bottom: 1px solid var(--linha);
+}
+.produto-nome {
+  font-family: var(--serifa); font-size: clamp(38px, 5vw, 58px);
+  line-height: 1.02; letter-spacing: -.02em;
+}
+.produto-resumo {
+  font-size: 18px; color: var(--tinta-2); max-width: 54ch; margin-top: 14px;
+}
+
+.compra { text-align: right; }
+.compra .preco { font-size: 38px; }
+
+.botao {
+  display: inline-block; font-family: var(--texto);
+  font-size: 15px; font-weight: 600; letter-spacing: .005em;
+  padding: 13px 26px; border-radius: var(--raio);
+  border: 1px solid var(--acento); background: var(--acento); color: var(--papel);
+  text-decoration: none; cursor: pointer; margin-top: 16px;
+  transition: background .15s, border-color .15s;
+}
+.botao:hover { background: var(--acento-2); border-color: var(--acento-2); }
+.botao-vazado {
+  background: transparent; color: var(--tinta);
+  border-color: var(--linha);
+}
+.botao-vazado:hover { background: var(--papel-2); border-color: var(--tinta-3); }
+
+/* ---------- demonstração ---------- */
+
+.demo { padding: 56px 0 0; }
+.demo-quadro {
+  position: relative; width: 100%; padding-top: 56.25%;
+  border: 1px solid var(--linha); border-radius: var(--raio);
+  background: #0F1923; overflow: hidden;
+}
+.demo-quadro iframe {
+  position: absolute; inset: 0; width: 100%; height: 100%; border: 0;
+}
+
+/* ---------- passos ----------
+   Cada passo traz a tela de verdade em que ele acontece. É o oposto da
+   grade de ícones: o visitante não precisa acreditar, ele vê. */
+
+.passos { padding: 92px 0 0; }
+.passo {
+  display: grid; grid-template-columns: 1fr 1.25fr;
+  gap: 56px; align-items: center;
+  padding: 52px 0; border-top: 1px solid var(--linha);
+}
+.passo:nth-child(even) .passo-texto { order: 2; }
+.passo-numero {
+  font-size: 12px; font-weight: 600; letter-spacing: .16em;
+  color: var(--acento); margin-bottom: 13px;
+}
+.passo-titulo {
+  font-family: var(--serifa); font-size: 32px; line-height: 1.12;
+  letter-spacing: -.014em; margin-bottom: 13px;
+}
+.passo-texto p { color: var(--tinta-2); max-width: 46ch; }
+.passo-texto p + p { margin-top: 13px; }
+
+/* ---------- a mensagem que o cliente recebe ----------
+   Reproduz o texto que o sistema envia de verdade, com o mesmo negrito que
+   o WhatsApp aplica. Não é ilustração: é o conteúdo do código. */
+
+.conversa {
+  background: #0B141A; border: 1px solid var(--linha);
+  border-radius: var(--raio); padding: 26px 22px;
+}
+.balao {
+  background: #075E54; color: #F2F6F5;
+  border-radius: 9px 9px 9px 2px;
+  padding: 13px 15px 9px; max-width: 400px;
+  font-size: 14.5px; line-height: 1.5;
+  white-space: pre-line;
+  box-shadow: 0 1px 1px rgba(0,0,0,.25);
+}
+.balao b { font-weight: 700; }
+.balao-hora {
+  display: block; text-align: right; font-size: 11px;
+  color: rgba(242,246,245,.55); margin-top: 5px;
+}
+.conversa-nota {
+  font-size: 12.5px; color: rgba(255,255,255,.4); margin-top: 14px;
+}
+
+/* ---------- inclusos ---------- */
+
+.inclusos { padding: 88px 0 0; }
+.lista-simples { max-width: 66ch; }
+.lista-simples li {
+  list-style: none; padding: 15px 0 15px 26px;
+  border-top: 1px solid var(--linha); position: relative;
+  color: var(--tinta-2);
+}
+.lista-simples li:last-child { border-bottom: 1px solid var(--linha); }
+.lista-simples li::before {
+  content: ''; position: absolute; left: 0; top: 25px;
+  width: 11px; height: 1px; background: var(--acento);
+}
+.lista-simples b { color: var(--tinta); font-weight: 600; }
+
+/* ---------- fechamento ---------- */
+
+.fechamento {
+  margin: 96px 0 0; padding: 52px 0;
+  border-top: 1px solid var(--linha); border-bottom: 1px solid var(--linha);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 32px; flex-wrap: wrap;
+}
+.fechamento-titulo {
+  font-family: var(--serifa); font-size: 34px; line-height: 1.1;
+  letter-spacing: -.015em; max-width: 20ch;
+}
+.fechamento .botao { margin-top: 0; }
+
+/* ---------- rodapé ---------- */
+
+.rodape { padding: 44px 0 64px; font-size: 13.5px; color: var(--tinta-3); }
+.rodape-grade {
+  display: flex; justify-content: space-between; gap: 32px; flex-wrap: wrap;
+}
+.rodape b { color: var(--tinta-2); font-weight: 600; display: block; }
+.rodape a { color: var(--tinta-2); text-decoration: none; }
+.rodape a:hover { color: var(--acento); }
+.rodape-dados p { margin-top: 3px; }
+
+/* ---------- celular ---------- */
+
+@media (max-width: 900px) {
+  body { font-size: 16px; }
+  .envelope, .cabecalho-interno { padding-left: 20px; padding-right: 20px; }
+  .logotipo { font-size: 32px; }
+
+  .abertura { padding: 36px 0 28px; }
+  .chamada { max-width: none; }
+
+  .sistema-envelope { grid-template-columns: 1fr; gap: 26px; }
+
+  /* A captura de celular é estreita e alta: ocupar a largura toda a deixaria
+     gigante. Contida, ela aparece no tamanho em que o sistema é usado. */
+  .sistema-galeria { max-width: 280px; margin: 0 auto; width: 100%; }
+  .galeria-rodape { flex-direction: column; gap: 6px; }
+
+  /* Menos deslocamento para fora: numa captura estreita, metade do botão
+     fora da moldura sairia da margem da página. */
+  .galeria-seta { width: 38px; height: 38px; font-size: 21px; }
+  .galeria-seta-anterior { left: -15px; }
+  .galeria-seta-proxima  { right: -15px; }
+
+  .ficha { grid-template-columns: 1fr; gap: 14px; padding: 28px 0; }
+  .ficha-numero { font-size: 22px; }
+  .ficha-direita { text-align: left; }
+  .ficha-direita .preco { font-size: 24px; }
+
+  .produto-topo { grid-template-columns: 1fr; gap: 28px; align-items: start; }
+  .compra { text-align: left; }
+
+  .passo { grid-template-columns: 1fr; gap: 28px; padding: 38px 0; }
+  .passo:nth-child(even) .passo-texto { order: 0; }
+
+  .fechamento { flex-direction: column; align-items: flex-start; }
+}
+
+
+/* ==========================================================================
+   VARIANTES DE ABERTURA — em comparação
+
+   As quatro mostram as mesmas telas e diferem só em como o visitante chega
+   até elas. O que muda entre uma e outra é quem controla: ninguém, ele, a
+   página, ou nada (tudo visível de uma vez).
+   ========================================================================== */
+
+/* ==========================================================================
+   OS SISTEMAS — um por envelope, alternando entre si
+   ========================================================================== */
+
+.vitrine-sistemas { padding-bottom: 8px; }
+
+.sistema-envelope {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.72fr) 1.72fr;
+  gap: 44px; align-items: center;
+}
+
+.sistema-dados { padding-bottom: 6px; }
+.sistema-nome {
+  font-family: var(--serifa); font-size: clamp(30px, 3.2vw, 42px);
+  line-height: 1.06; letter-spacing: -.016em;
+}
+.sistema-resumo {
+  font-size: 16.5px; line-height: 1.58; color: var(--tinta-2);
+  margin-top: 14px; max-width: 42ch;
+}
+.sistema-preco { margin-top: 22px; }
+.sistema-preco .preco { display: block; }
+.sistema-dados .botao { margin-top: 20px; }
+
+.etiqueta-breve {
+  display: inline-block; margin-top: 22px;
+  font-size: 11.5px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .14em;
+  color: var(--tinta-3);
+  border: 1px dashed var(--linha); border-radius: var(--raio);
+  padding: 8px 14px;
+}
+
+/* ---------- galeria de um sistema ---------- */
+
+.galeria-palco { position: relative; }
+.galeria-figura { display: none; }
+.galeria-figura.ativa { display: block; }
+
+/* Setas na cor do papel, montadas sobre a borda da moldura.
+   A primeira versão era escura e translúcida, por cima da captura: como as
+   telas do sistema são escuras, os botões sumiam dentro delas e liam como
+   falha de renderização, não como controle. Na cor da página, destacam-se
+   do que estão navegando e pertencem à página, não à imagem. */
+.galeria-seta {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 42px; height: 42px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--texto); font-size: 24px; line-height: 1;
+  padding-bottom: 3px;   /* centra o glifo, que assenta alto na caixa */
+  color: var(--tinta); background: var(--papel);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  cursor: pointer;
+  box-shadow: 0 2px 10px -4px rgba(23,19,15,.45);
+  transition: background .15s, border-color .15s, color .15s;
+}
+.galeria-seta:hover {
+  background: var(--acento); border-color: var(--acento); color: var(--papel);
+}
+.galeria-seta:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+
+/* Metade para fora da moldura: fica claro que o controle é da página e não
+   um elemento da tela capturada. */
+.galeria-seta-anterior { left: -21px; }
+.galeria-seta-proxima  { right: -21px; }
+
+.galeria-rodape {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 20px; margin-top: 12px;
+}
+.galeria-legenda {
+  position: relative; flex: 1;
+  /* As legendas têm comprimentos diferentes; sem altura mínima o conteúdo
+     abaixo pula a cada troca de imagem. */
+  min-height: 2.9em;
+  font-size: 13px; color: var(--tinta-3); line-height: 1.5;
+}
+.legenda-item { display: none; }
+.legenda-item.ativa { display: inline; }
+.legenda-item b { color: var(--tinta-2); font-weight: 600; }
+.legenda-item b::after { content: ' — '; font-weight: 400; color: var(--tinta-3); }
+
+.galeria-rodape-vazio { margin-top: 12px; min-height: 2.9em; }
+
+.galeria-contador {
+  font-size: 12.5px; color: var(--tinta-3);
+  font-variant-numeric: tabular-nums; white-space: nowrap; padding-top: 1px;
+}
+.galeria-atual { color: var(--tinta-2); font-weight: 600; }
+
+/* ---------- vaga reservada ---------- */
+
+.moldura-vazia {
+  background: var(--papel-2);
+  border: 1px dashed var(--linha);
+  box-shadow: none;
+  /* Mesma proporção das capturas, para o carrossel não mudar de altura ao
+     passar por uma vaga. */
+  aspect-ratio: 1800 / 1125;
+  display: flex; align-items: center; justify-content: center;
+  /* Hachura diagonal levíssima: diz "reservado" sem virar enfeite. */
+  background-image: repeating-linear-gradient(
+    45deg, transparent, transparent 11px,
+    rgba(214, 204, 188, .35) 11px, rgba(214, 204, 188, .35) 12px);
+}
+.marca-breve {
+  font-family: var(--serifa); font-size: clamp(26px, 3vw, 38px);
+  color: var(--tinta-3); letter-spacing: -.01em;
+  background: var(--papel); padding: 6px 20px;
+}
+
+/* ---------- controles do carrossel de sistemas ---------- */
+
+.carrossel-palco { position: relative; }
+.carrossel-slide { display: none; }
+.carrossel-slide.ativo { display: block; animation: surgir .45s ease; }
+
+@keyframes surgir { from { opacity: 0 } to { opacity: 1 } }
+
+@media (prefers-reduced-motion: reduce) {
+  .carrossel-slide.ativo { animation: none; }
+}
+
+.carrossel-controles {
+  display: flex; align-items: center; gap: 18px;
+  margin-top: 26px; padding-top: 18px;
+  border-top: 1px solid var(--linha);
+}
+.carrossel-pausa {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--texto); font-size: 12.5px; font-weight: 500;
+  color: var(--tinta-3); background: transparent; border: 0;
+  padding: 12px 6px; margin: -12px -6px;
+  cursor: pointer;
+}
+.carrossel-pausa:hover { color: var(--tinta); }
+.carrossel-pausa:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+
+.sinal-pausa {
+  width: 9px; height: 10px; display: inline-block;
+  border-left: 3px solid currentColor; border-right: 3px solid currentColor;
+}
+.carrossel-pausa.pausado .sinal-pausa {
+  border: 0; width: 0; height: 0;
+  border-left: 9px solid currentColor;
+  border-top: 5px solid transparent; border-bottom: 5px solid transparent;
+}
+
+.carrossel-pontos { display: flex; gap: 7px; }
+.carrossel-ponto {
+  /* content-box contra o border-box global: com border-box, a altura de 3px
+     passaria a INCLUIR os 40px de preenchimento, o conteúdo ficaria com
+     altura negativa e a barra não pintaria nada. */
+  box-sizing: content-box;
+  width: 30px; height: 3px;
+  padding: 20px 0; margin: -20px 0;
+  background-clip: content-box;
+  border: 0; cursor: pointer;
+  background-color: var(--papel-3);
+  transition: background-color .18s;
+}
+.carrossel-ponto.ativo { background-color: var(--acento); }
+.carrossel-ponto:hover { background-color: var(--tinta-3); }
+.carrossel-ponto:focus-visible { outline: 2px solid var(--acento); outline-offset: 3px; }
+
+/* ---------- celular ---------- */
+
+@media (max-width: 900px) {
+  body { font-size: 16px; }
+  .envelope, .cabecalho-interno { padding-left: 20px; padding-right: 20px; }
+  .logotipo { font-size: 32px; }
+
+  .abertura { padding: 36px 0 28px; }
+  .chamada { max-width: none; }
+
+  .sistema-envelope { grid-template-columns: 1fr; gap: 26px; }
+
+  /* A captura de celular é estreita e alta: ocupar a largura toda a deixaria
+     gigante. Contida, ela aparece no tamanho em que o sistema é usado. */
+  .sistema-galeria { max-width: 280px; margin: 0 auto; width: 100%; }
+  .galeria-rodape { flex-direction: column; gap: 6px; }
+
+  /* Menos deslocamento para fora: numa captura estreita, metade do botão
+     fora da moldura sairia da margem da página. */
+  .galeria-seta { width: 38px; height: 38px; font-size: 21px; }
+  .galeria-seta-anterior { left: -15px; }
+  .galeria-seta-proxima  { right: -15px; }
+
+  .ficha { grid-template-columns: 1fr; gap: 14px; padding: 28px 0; }
+  .ficha-numero { font-size: 22px; }
+  .ficha-direita { text-align: left; }
+  .ficha-direita .preco { font-size: 24px; }
+
+  .produto-topo { grid-template-columns: 1fr; gap: 28px; align-items: start; }
+  .compra { text-align: left; }
+
+  .passo { grid-template-columns: 1fr; gap: 28px; padding: 38px 0; }
+  .passo:nth-child(even) .passo-texto { order: 0; }
+
+  .fechamento { flex-direction: column; align-items: flex-start; }
+}
+
+
+/* ==========================================================================
+   VARIANTES DE ABERTURA — em comparação
+
+   As quatro mostram as mesmas telas e diferem só em como o visitante chega
+   até elas. O que muda entre uma e outra é quem controla: ninguém, ele, a
+   página, ou nada (tudo visível de uma vez).
+   ========================================================================== */
+
+/* ---------- carrossel ---------- */
+
+.carrossel-palco { position: relative; }
+.carrossel-slide { display: none; }
+.carrossel-slide.ativo { display: block; animation: surgir .45s ease; }
+
+@keyframes surgir { from { opacity: 0 } to { opacity: 1 } }
+
+/* Quem pediu menos movimento não recebe nem a transição. */
+@media (prefers-reduced-motion: reduce) {
+  .carrossel-slide.ativo { animation: none; }
+}
+
+/* A legenda muda de tamanho entre um slide e outro; sem uma altura mínima,
+   o catálogo logo abaixo pula a cada troca. */
+.carrossel-slide .legenda { min-height: 2.6em; }
+
+.carrossel-controles {
+  display: flex; align-items: center; gap: 18px;
+  margin-top: 6px;
+}
+.carrossel-pausa {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--texto); font-size: 12.5px; font-weight: 500;
+  color: var(--tinta-3); background: transparent; border: 0;
+  /* 44px de alvo de toque, sem inchar o visual: o preenchimento é
+     transparente. */
+  padding: 12px 6px; margin: -12px -6px;
+  cursor: pointer;
+}
+.carrossel-pausa:hover { color: var(--tinta); }
+.carrossel-pausa:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+
+/* Duas barras = pausar; vira triângulo quando já está pausado. */
+.sinal-pausa {
+  width: 9px; height: 10px; display: inline-block;
+  border-left: 3px solid currentColor; border-right: 3px solid currentColor;
+}
+.carrossel-pausa.pausado .sinal-pausa {
+  border: 0; width: 0; height: 0;
+  border-left: 9px solid currentColor;
+  border-top: 5px solid transparent; border-bottom: 5px solid transparent;
+}
+
+.carrossel-pontos { display: flex; gap: 7px; }
+.carrossel-ponto {
+  /* content-box aqui, contra o border-box global: com border-box, a altura
+     de 3px passaria a INCLUIR os 40px de preenchimento, o conteúdo ficaria
+     com altura negativa e a barra não pintaria nada. O clique continuaria
+     funcionando — foi assim que o defeito passou pelos testes de
+     comportamento e só apareceu olhando a tela. */
+  box-sizing: content-box;
+  width: 30px; height: 3px;
+  /* A área de toque tem 43px de altura; a barra visível, 3px. */
+  padding: 20px 0; margin: -20px 0;
+  background-clip: content-box;
+  border: 0; cursor: pointer;
+  background-color: var(--papel-3);
+  transition: background-color .18s;
+}
+.carrossel-ponto.ativo { background-color: var(--acento); }
+.carrossel-ponto:hover { background-color: var(--tinta-3); }
+.carrossel-ponto:focus-visible { outline: 2px solid var(--acento); outline-offset: 3px; }

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drlog — Sistemas</title>
+  <meta name="description"
+        content="Software para negócios que trabalham com ordem de serviço: sapataria, lavanderia, assistência técnica. O cliente deixa, você conserta, o sistema avisa no WhatsApp.">
+  <meta name="theme-color" content="#F4F0E9">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="stylesheet" th:href="@{/css/site.css}">
+</head>
+<body>
+
+<header th:replace="~{site/_partes :: cabecalho}"></header>
+
+<!-- ABERTURA
+     A captura vem junto com a frase, não depois dela. Quem chega aqui está
+     decidindo em três segundos se isso é sério; uma tela de sistema real
+     responde isso mais rápido que qualquer texto. -->
+<!--
+  Um h1 só e estável para a página. As chamadas dos slides trocam a cada
+  poucos segundos; três h1 alternando no mesmo documento é confuso para
+  leitor de tela e para buscador. Este fica fora da vista, mas é o título
+  que descreve a página inteira.
+-->
+<h1 class="oculto-visual">Drlog — sistemas para negócios que trabalham com ordem de serviço</h1>
+
+<!-- OS SISTEMAS — cada um com a sua abertura, alternando entre si -->
+<div th:replace="~{site/_aberturas :: __${abertura}__}"></div>
+
+<!-- CATÁLOGO
+     Lista com fio entre os itens, não grade de três cards: com um sistema
+     no ar, a grade de três obrigaria a inventar dois. -->
+<section class="catalogo" id="sistemas">
+  <div class="envelope">
+    <div class="rotulo">
+      Sistemas
+      <span class="contagem" th:text="${#lists.size(catalogo)} + ' no ar'">1 no ar</span>
+    </div>
+
+    <a th:each="item, i : ${catalogo}" class="ficha"
+       th:href="@{'/sistemas/' + ${item.produto.codigo}}">
+
+      <div class="ficha-numero" th:text="${#numbers.formatInteger(i.count, 2)}">01</div>
+
+      <div>
+        <h2 class="ficha-nome" th:text="${item.produto.nome}">Styllus — Gestão de Sapataria</h2>
+        <p class="ficha-resumo" th:text="${item.produto.resumo}">Resumo do sistema.</p>
+        <div class="ficha-marcas">
+          <span class="marca-tec">Quadro de serviços</span>
+          <span class="marca-tec">Aviso por WhatsApp</span>
+          <span class="marca-tec">Controle de retirada</span>
+          <span class="marca-tec">Fechamento do mês</span>
+        </div>
+      </div>
+
+      <div class="ficha-direita" th:if="${item.plano != null}">
+        <div class="preco" th:text="${item.plano.precoFormatado()}">R$ 99,00</div>
+        <div class="preco-ciclo" th:text="${item.plano.ciclo.name() == 'mensal' ? 'por mês' : 'por ano'}">por mês</div>
+        <span class="ficha-seta">Ver por dentro &rarr;</span>
+      </div>
+    </a>
+
+    <p class="nota-catalogo">
+      Por enquanto é um só. Cada sistema novo nasce do mesmo jeito: de um
+      problema concreto de uma loja concreta — não de uma lista de
+      funcionalidades escrita antes de alguém precisar delas.
+    </p>
+  </div>
+</section>
+
+<!-- RODAPÉ -->
+<footer th:replace="~{site/_partes :: rodape}"></footer>
+
+<script th:src="@{/js/abertura.js}" defer></script>
+
+</body>
+</html>

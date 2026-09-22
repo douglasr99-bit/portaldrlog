@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title th:text="${produto.nome} + ' — Drlog'">Styllus — Drlog</title>
+  <meta name="description" th:content="${produto.resumo}">
+  <meta name="theme-color" content="#F4F0E9">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="stylesheet" th:href="@{/css/site.css}">
+</head>
+<body>
+
+<header th:replace="~{site/_partes :: cabecalho}"></header>
+
+<div class="envelope">
+  <a class="volta" th:href="@{/}">&larr; Todos os sistemas</a>
+
+  <div class="produto-topo">
+    <div>
+      <h1 class="produto-nome" th:text="${produto.nome}">Styllus — Gestão de Sapataria</h1>
+      <p class="produto-resumo" th:text="${produto.descricao}">Descrição.</p>
+    </div>
+
+    <div class="compra" th:with="plano=${planos.isEmpty()} ? null : ${planos[0]}">
+      <div th:if="${plano != null}">
+        <div class="preco" th:text="${plano.precoFormatado()}">R$ 99,00</div>
+        <div class="preco-ciclo" th:text="${plano.ciclo.name() == 'mensal' ? 'por mês, por loja' : 'por ano, por loja'}">por mês, por loja</div>
+      </div>
+      <!-- O checkout chega na etapa 3. Até lá o botão leva a uma conversa
+           de verdade, que é como as primeiras assinaturas vão ser fechadas
+           de qualquer jeito. -->
+      <a th:if="${empresa.whatsappLink}" class="botao"
+         th:href="${empresa.whatsappLink} + '?text=' + ${#uris.escapeQueryParam('Olá! Quero assinar o ' + produto.nome + '.')}">
+        Quero assinar
+      </a>
+      <a th:if="${empresa.whatsappLink == null and empresa.email != null}" class="botao"
+         th:href="'mailto:' + ${empresa.email}">Quero assinar</a>
+    </div>
+  </div>
+</div>
+
+<!-- DEMONSTRAÇÃO
+     Com vídeo cadastrado, é o vídeo. Sem vídeo, é a tela grande — e nunca
+     um player vazio esperando conteúdo. -->
+<section class="demo">
+  <div class="envelope">
+    <div th:if="${produto.videoUrl}" class="demo-quadro">
+      <iframe th:src="${produto.videoUrl}" title="Demonstração do sistema"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture"
+              allowfullscreen></iframe>
+    </div>
+
+    <figure th:unless="${produto.videoUrl}" class="moldura">
+      <picture>
+        <source th:srcset="@{/img/styllus-resumo.webp}" type="image/webp">
+        <img th:src="@{/img/styllus-resumo.png}" width="1800" height="1125"
+             alt="Resumo de produção do Styllus: faturamento do mês, serviços concluídos, ticket médio, valor já pago e valor a receber na entrega, com arrecadação por tipo de serviço e ranking de clientes.">
+      </picture>
+    </figure>
+    <p class="legenda" th:unless="${produto.videoUrl}">
+      Resumo de produção do mês. Captura do sistema real, com dados de exemplo.
+    </p>
+  </div>
+</section>
+
+<!-- COMO FUNCIONA — cada passo com a tela em que ele acontece -->
+<section class="passos">
+  <div class="envelope">
+    <div class="rotulo">Um serviço, do balcão à retirada</div>
+
+    <div class="passo">
+      <div class="passo-texto">
+        <div class="passo-numero">01</div>
+        <h2 class="passo-titulo">Chega o serviço</h2>
+        <p>Nome, telefone, o que vai ser feito, quanto custa e se paga agora
+           ou na entrega.</p>
+        <p>Se aquele telefone já passou pela loja antes, o sistema reconhece
+           o cliente e junta com o histórico dele. “maria silva” e
+           “  Maria Silva  ” são a mesma pessoa — não viram dois cadastros.</p>
+      </div>
+      <figure class="moldura">
+        <picture>
+          <source th:srcset="@{/img/styllus-cadastro.webp}" type="image/webp">
+          <img th:src="@{/img/styllus-cadastro.png}" width="1400" height="875"
+               alt="Tela de cadastro de um novo serviço no Styllus.">
+        </picture>
+      </figure>
+    </div>
+
+    <div class="passo">
+      <div class="passo-texto">
+        <div class="passo-numero">02</div>
+        <h2 class="passo-titulo">Passa pela bancada</h2>
+        <p>Três colunas: <b>Fila de Serviços</b>, <b>Mesa do Dia</b> e
+           <b>Realizados</b>. O serviço anda conforme o trabalho anda.</p>
+        <p>É o mesmo quadro que já existe na parede da oficina, sem o risco
+           de o papel cair atrás do balcão — e visível do balcão e do celular
+           ao mesmo tempo.</p>
+      </div>
+      <figure class="moldura">
+        <picture>
+          <source th:srcset="@{/img/styllus-kanban.webp}" type="image/webp">
+          <img th:src="@{/img/styllus-kanban.png}" width="1800" height="1125"
+               alt="Quadro de operação com as colunas Mesa do Dia, Fila de Serviços e Realizados.">
+        </picture>
+      </figure>
+    </div>
+
+    <div class="passo">
+      <div class="passo-texto">
+        <div class="passo-numero">03</div>
+        <h2 class="passo-titulo">Fica pronto, e o cliente fica sabendo</h2>
+        <p>No clique em <b>Concluir</b>, a mensagem sai do WhatsApp da própria
+           loja — não de um número desconhecido.</p>
+        <p>Esta é a mensagem, com o texto que o sistema envia de verdade:</p>
+      </div>
+
+      <div class="conversa">
+        <div class="balao">Olá <b>Maria Aparecida Souza</b>! 👋
+
+Seu serviço (<b>Troca de meia-sola</b>) na <b>Styllus Sapataria</b> está <b>PRONTO</b> para retirada! 🛠️👞
+
+💰 <b>Valor:</b> R$ 85,00
+⏳ <b>Pagamento na retirada:</b> R$ 85,00
+
+Aguardamos sua visita! Tenha um ótimo dia. 😊<span class="balao-hora">14:32</span></div>
+        <p class="conversa-nota">O nome da loja na mensagem é o da sua loja.</p>
+      </div>
+    </div>
+
+    <div class="passo">
+      <div class="passo-texto">
+        <div class="passo-numero">04</div>
+        <h2 class="passo-titulo">Quem não busca, é lembrado sozinho</h2>
+        <p>A cada sete dias o aviso é reenviado, até alguém retirar. Calçado
+           pronto que fica na prateleira ocupa espaço e, quando o pagamento é
+           na entrega, segura dinheiro.</p>
+        <p>Na retirada fica registrado <b>quem levou</b>. Nem sempre é o dono
+           do sapato — é um vizinho, um parente, alguém do trabalho — e é
+           exatamente aí que a conversa costuma virar discussão.</p>
+      </div>
+      <figure class="moldura">
+        <picture>
+          <source th:srcset="@{/img/styllus-kanban-celular.webp}" type="image/webp">
+          <img th:src="@{/img/styllus-kanban-celular.png}" width="560" height="1213"
+               alt="O sistema aberto no celular, mostrando os serviços aguardando retirada.">
+        </picture>
+      </figure>
+    </div>
+
+    <div class="passo">
+      <div class="passo-texto">
+        <div class="passo-numero">05</div>
+        <h2 class="passo-titulo">No fim do mês</h2>
+        <p>Quanto entrou, quanto ainda está para receber na entrega, qual tipo
+           de serviço puxa o faturamento e quais clientes voltam.</p>
+        <p>A data que conta é a da conclusão, marcada pelo servidor — um
+           computador com o relógio errado não joga faturamento para o mês
+           seguinte.</p>
+      </div>
+      <figure class="moldura">
+        <picture>
+          <source th:srcset="@{/img/styllus-resumo.webp}" type="image/webp">
+          <img th:src="@{/img/styllus-resumo.png}" width="1800" height="1125"
+               alt="Resumo de produção com faturamento, ticket médio e valores a receber.">
+        </picture>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- O QUE ESTÁ INCLUÍDO -->
+<section class="inclusos">
+  <div class="envelope">
+    <div class="rotulo">O que vem junto</div>
+    <ul class="lista-simples">
+      <li><b>O WhatsApp é o da loja.</b> Conectado uma vez pelo QR Code, como
+          no WhatsApp Web. As mensagens saem do número que seus clientes já
+          conhecem.</li>
+      <li><b>Balcão e celular ao mesmo tempo.</b> Os dados ficam no servidor,
+          não no navegador: limpar o cache não apaga nada, e o que foi
+          cadastrado no computador aparece no celular.</li>
+      <li><b>Backup diário do banco de dados.</b></li>
+      <li><b>Sem limite de serviços, clientes ou usuários.</b></li>
+      <li><b>Acesso protegido por senha</b>, com conexão cifrada.</li>
+    </ul>
+  </div>
+</section>
+
+<div class="envelope">
+  <div class="fechamento">
+    <h2 class="fechamento-titulo">Quer ver rodando com os serviços da sua loja?</h2>
+    <a th:if="${empresa.whatsappLink}" class="botao"
+       th:href="${empresa.whatsappLink} + '?text=' + ${#uris.escapeQueryParam('Olá! Queria ver o ' + produto.nome + ' funcionando.')}">
+      Falar no WhatsApp
+    </a>
+    <a th:if="${empresa.whatsappLink == null and empresa.email != null}" class="botao"
+       th:href="'mailto:' + ${empresa.email}">Falar com a gente</a>
+  </div>
+</div>
+
+<footer th:replace="~{site/_partes :: rodape}"></footer>
+
+</body>
+</html>

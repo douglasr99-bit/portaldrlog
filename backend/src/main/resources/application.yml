@@ -1,0 +1,91 @@
+server:
+  port: 8082
+
+  # Atrás do Traefik, que termina o TLS e repassa em HTTP. Sem honrar o
+  # X-Forwarded-Proto, os redirecionamentos do Spring — e são muitos, com
+  # formulário de login — apontariam para http://.
+  forward-headers-strategy: native
+
+  servlet:
+    session:
+      # Só cookie. Sem isto o Tomcat, quando ainda não recebeu o cookie de
+      # volta, reescreve a URL como /login;jsessionid=ABC... — e o
+      # identificador de sessão passa a viajar no log de acesso do proxy, no
+      # histórico do navegador e no cabeçalho Referer de todo link seguinte.
+      tracking-modes: cookie
+      cookie:
+        http-only: true
+        # "secure" não é fixado aqui de propósito: o Tomcat já marca o cookie
+        # como Secure sempre que a requisição é HTTPS — e, com o
+        # forward-headers-strategy acima, ela é HTTPS em produção. Forçar
+        # true quebraria o desenvolvimento local em http://localhost, que é
+        # o caminho conhecido para alguém desligar a linha inteira.
+        # Lax deixa o cookie acompanhar a navegação normal, mas não uma
+        # requisição disparada por outro site — defesa em profundidade junto
+        # com o CSRF.
+        same-site: lax
+
+spring:
+  application:
+    name: portal-drlog
+
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/portal}
+    username: ${DATABASE_USER:portal}
+    password: ${DATABASE_PASSWORD:}
+
+  flyway:
+    enabled: true
+    # Erra alto de propósito: se o banco tiver tabelas que o Flyway não
+    # conhece, é porque alguém mexeu fora da migração, e seguir em frente
+    # esconderia isso até dar problema.
+    baseline-on-migrate: false
+
+  jpa:
+    hibernate:
+      # 'validate', não 'update'. Quem cria e altera tabela é o Flyway; o
+      # Hibernate só confere se as entidades batem com o que existe. Deixar os
+      # dois alterando o esquema é ter duas fontes de verdade para a mesma
+      # coisa — o erro que o jar dessincronizado já custou uma vez.
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  thymeleaf:
+    cache: false
+
+app:
+  vitrine:
+    # Como a abertura apresenta as telas do sistema:
+    #   carrossel — troca sozinha a cada 6,5s, com pausa e indicadores
+    #   fixa      — mostra só a primeira tela, sem movimento
+    #
+    # Não é parâmetro de URL de propósito: ?abertura=... criaria endereços
+    # diferentes com o mesmo conteúdo, que buscador trata como duplicado.
+    abertura: ${APP_VITRINE_ABERTURA:carrossel}
+
+  # Dados que aparecem no rodapé da vitrine. Sem padrão de propósito: um CNPJ
+  # de exemplo que vaze para produção é informação falsa sobre quem está
+  # cobrando. A página omite o que não estiver preenchido, e a aplicação avisa
+  # no log o que falta.
+  empresa:
+    razao-social: ${APP_EMPRESA_RAZAO_SOCIAL:}
+    cnpj:         ${APP_EMPRESA_CNPJ:}
+    endereco:     ${APP_EMPRESA_ENDERECO:}
+    whatsapp:     ${APP_EMPRESA_WHATSAPP:}
+    email:        ${APP_EMPRESA_EMAIL:}
+
+  admin:
+    # Conta criada apenas quando o banco não tem nenhuma. Sem senha definida,
+    # é gerada uma aleatória e registrada no log — e, diferente do Styllus,
+    # ela NÃO muda a cada reinício, porque fica gravada no banco.
+    email: ${APP_ADMIN_EMAIL:}
+    senha: ${APP_ADMIN_SENHA:}
+
+logging:
+  level:
+    root: INFO
+    br.com.drlog.portal: DEBUG

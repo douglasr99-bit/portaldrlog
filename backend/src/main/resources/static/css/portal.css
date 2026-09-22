@@ -1,0 +1,230 @@
+/* ==========================================================================
+   Portal Drlog
+
+   Mesma família visual do Styllus — fundo escuro, cartão elevado — com
+   acento em azul no lugar do dourado. O Portal é a loja, não a sapataria:
+   deve parecer da mesma casa sem se confundir com um dos sistemas vendidos.
+   ========================================================================== */
+
+:root {
+  --azul:          #3B82F6;
+  --azul-claro:    #60A5FA;
+  --azul-escuro:   #1D4ED8;
+
+  --ok:            #2ECC71;
+  --ok-bg:         rgba(46, 204, 113, 0.12);
+  --alerta:        #F39C12;
+  --alerta-bg:     rgba(243, 156, 18, 0.12);
+  --erro:          #E74C3C;
+  --erro-bg:       rgba(231, 76, 60, 0.12);
+
+  --fundo:         #0B1220;
+  --fundo-grad:    linear-gradient(135deg, #0B1220 0%, #141F35 100%);
+  --superficie:    #141F35;
+  --superficie-2:  #1C2A45;
+  --borda:         rgba(96, 165, 250, 0.12);
+
+  --texto:         #E8EDF5;
+  --texto-suave:   #8595AD;
+  --texto-fraco:   #5A6980;
+
+  --raio:          12px;
+  --raio-sm:       8px;
+  --sombra:        0 4px 24px rgba(0,0,0,0.35);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+               "Helvetica Neue", Arial, sans-serif;
+  background: var(--fundo);
+  background-image: var(--fundo-grad);
+  background-attachment: fixed;
+  color: var(--texto);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- login ---------- */
+
+.tela-centro {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.cartao-login {
+  width: 100%;
+  max-width: 400px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+  padding: 40px 32px 28px;
+}
+
+.marca { text-align: center; margin-bottom: 28px; }
+.marca-nome {
+  font-size: 34px; font-weight: 700; letter-spacing: 1px;
+  color: var(--azul-claro);
+}
+.marca-sub {
+  font-size: 13px; text-transform: uppercase; letter-spacing: 3px;
+  color: var(--texto-suave); margin-top: 2px;
+}
+.marca-linha {
+  width: 48px; height: 2px; margin: 18px auto 0;
+  background: var(--azul); border-radius: 2px;
+}
+
+.campo { margin-bottom: 18px; }
+.rotulo {
+  display: block; font-size: 13px; font-weight: 600;
+  color: var(--texto-suave); margin-bottom: 6px;
+}
+.entrada {
+  width: 100%;
+  /* 16px evita o zoom automático do Safari no iPhone ao focar o campo. */
+  font-size: 16px;
+  padding: 12px 14px;
+  background: var(--fundo);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-sm);
+  color: var(--texto);
+  transition: border-color .15s;
+}
+.entrada:focus {
+  outline: none;
+  border-color: var(--azul);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.rodape-login {
+  margin-top: 22px; text-align: center;
+  font-size: 12px; color: var(--texto-fraco);
+}
+
+/* ---------- botões ---------- */
+
+.botao {
+  font-size: 15px; font-weight: 600;
+  /* 44px de altura mínima: alvo de toque confortável no celular. */
+  min-height: 44px;
+  padding: 11px 18px;
+  border: none; border-radius: var(--raio-sm);
+  cursor: pointer;
+  transition: background .15s, opacity .15s;
+}
+.botao-bloco { display: block; width: 100%; margin-top: 8px; }
+.botao-primario { background: var(--azul); color: #fff; }
+.botao-primario:hover:not(:disabled) { background: var(--azul-escuro); }
+.botao-primario:disabled { opacity: .45; cursor: not-allowed; }
+.botao-discreto {
+  background: transparent; color: var(--texto-suave);
+  border: 1px solid var(--borda);
+}
+.botao-discreto:hover { color: var(--texto); border-color: var(--azul); }
+
+/* ---------- alertas ---------- */
+
+.alerta {
+  padding: 10px 14px; border-radius: var(--raio-sm);
+  font-size: 14px; margin-bottom: 18px;
+}
+.alerta-erro  { background: var(--erro-bg);   color: var(--erro);   }
+.alerta-aviso { background: var(--alerta-bg); color: var(--alerta); }
+
+/* ---------- topo ---------- */
+
+.topo {
+  background: var(--superficie);
+  border-bottom: 1px solid var(--borda);
+}
+.topo-interno {
+  max-width: 1040px; margin: 0 auto; padding: 14px 24px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+}
+.marca-nome-topo {
+  font-size: 20px; font-weight: 700; color: var(--azul-claro);
+}
+.marca-sub-topo {
+  font-size: 12px; text-transform: uppercase; letter-spacing: 2px;
+  color: var(--texto-fraco); margin-left: 8px;
+}
+.topo-conta { display: flex; align-items: center; gap: 14px; }
+.conta-nome { font-size: 14px; color: var(--texto-suave); }
+.form-sair { margin: 0; }
+.form-sair .botao { min-height: 36px; padding: 6px 14px; font-size: 13px; }
+
+/* ---------- conteúdo ---------- */
+
+.conteudo { max-width: 1040px; margin: 0 auto; padding: 32px 24px 64px; }
+
+.titulo { font-size: 24px; font-weight: 700; }
+.titulo-secao {
+  font-size: 15px; text-transform: uppercase; letter-spacing: 2px;
+  color: var(--texto-fraco); margin-bottom: 16px;
+}
+.texto-apoio { color: var(--texto-suave); font-size: 14px; }
+
+.bloco-tenant { margin-bottom: 40px; }
+.cabecalho-tenant { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.codigo-tenant { font-size: 12px; color: var(--texto-fraco); margin: 2px 0 18px; }
+.codigo-tenant code {
+  background: var(--superficie-2); padding: 1px 6px;
+  border-radius: 4px; color: var(--texto-suave);
+}
+
+.etiqueta {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+  padding: 3px 9px; border-radius: 99px;
+  background: var(--superficie-2); color: var(--texto-suave);
+}
+
+.grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.cartao-sistema {
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: 20px;
+}
+.cartao-topo {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 10px; margin-bottom: 8px;
+}
+.cartao-titulo { font-size: 17px; font-weight: 600; }
+.cartao-plano  { font-size: 14px; color: var(--texto-suave); }
+.cartao-validade { font-size: 13px; color: var(--texto-fraco); margin-top: 4px; }
+.cartao-descricao { font-size: 14px; color: var(--texto-suave); margin-top: 6px; }
+.cartao-nota {
+  font-size: 13px; color: var(--alerta);
+  background: var(--alerta-bg); padding: 8px 12px;
+  border-radius: var(--raio-sm); margin-top: 12px;
+}
+.cartao-catalogo { background: var(--superficie-2); }
+
+.selo {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1px; padding: 3px 9px; border-radius: 99px;
+  white-space: nowrap;
+}
+.selo-ok        { background: var(--ok-bg);    color: var(--ok);    }
+.selo-bloqueado { background: var(--erro-bg);  color: var(--erro);  }
+
+.catalogo { margin-top: 48px; }
+.vazio { padding: 48px 0; }
+.vazio .texto-apoio { margin-top: 8px; max-width: 46ch; }
+
+@media (max-width: 520px) {
+  .topo-interno { padding: 12px 16px; }
+  .conteudo { padding: 24px 16px 48px; }
+  .conta-nome { display: none; }
+}

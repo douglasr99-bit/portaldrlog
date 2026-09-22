@@ -1,0 +1,158 @@
+<!--
+  Abertura da vitrine.
+
+  O carrossel é de SISTEMAS: cada um ocupa o envelope inteiro, com seus dados
+  de um lado e uma galeria das próprias telas do outro. Os sistemas se
+  alternam sozinhos; as imagens de dentro de um sistema são navegadas pelo
+  visitante, com as setas.
+
+  Duas rotações no mesmo lugar seriam ruído — por isso só a de fora é
+  automática.
+-->
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!-- ======================================================================
+     Um sistema: dados à esquerda, galeria à direita.
+     ====================================================================== -->
+<div th:fragment="envelopeSistema(s, primeiro)">
+
+  <!-- A abertura é de cada sistema, não da página: ela troca junto com o
+       carrossel. Antes ficava fixa acima dele, e o texto continuava falando
+       de um sistema enquanto a imagem já mostrava outro. -->
+  <div class="abertura">
+    <div class="carimbo" th:classappend="${s.emBreve} ? ' carimbo-neutro'"
+         th:text="${s.carimbo}">Em produção desde agosto de 2026</div>
+    <h2 class="chamada">
+      <span th:text="${s.chamada}">O cliente deixa. Você conserta.</span>
+      <em th:text="${s.destaque}">O sistema avisa.</em>
+    </h2>
+    <p class="abertura-texto" th:text="${s.texto}">Texto de apoio.</p>
+  </div>
+
+  <div class="sistema-envelope">
+
+  <div class="sistema-dados">
+    <h3 class="sistema-nome" th:unless="${s.emBreve}"
+        th:text="${s.titulo}">Styllus — Gestão de Sapataria</h3>
+
+    <p class="sistema-resumo" th:if="${s.resumo}" th:text="${s.resumo}">Resumo.</p>
+
+    <div class="sistema-preco" th:if="${s.plano != null}">
+      <span class="preco" th:text="${s.plano.precoFormatado()}">R$ 99,00</span>
+      <span class="preco-ciclo"
+            th:text="${s.plano.ciclo.name() == 'mensal' ? 'por mês, por loja' : 'por ano, por loja'}">por mês</span>
+    </div>
+
+    <a class="botao" th:unless="${s.emBreve}"
+       th:href="@{'/sistemas/' + ${s.codigo}}">Ver por dentro</a>
+
+  </div>
+
+  <div class="sistema-galeria" th:if="${not s.emBreve}"
+       th:attr="data-galeria=${s.codigo}">
+
+    <div class="galeria-palco">
+      <div th:each="img, i : ${s.imagens}" class="galeria-figura"
+           th:classappend="${i.first} ? ' ativa'" th:attr="data-figura=${i.index}">
+        <figure class="moldura">
+          <picture>
+            <source media="(max-width: 900px)" type="image/webp"
+                    th:srcset="@{'/img/' + ${img.celular} + '.webp'}">
+            <source media="(max-width: 900px)" type="image/png"
+                    th:srcset="@{'/img/' + ${img.celular} + '.png'}">
+            <source type="image/webp" th:srcset="@{'/img/' + ${img.arquivo} + '.webp'}">
+            <img th:src="@{'/img/' + ${img.arquivo} + '.png'}" th:alt="${img.alt}"
+                 th:attr="fetchpriority=${primeiro and i.first} ? 'high' : 'auto'">
+          </picture>
+        </figure>
+      </div>
+
+      <!-- As setas ficam sobre a imagem, nas bordas. Só aparecem quando há
+           mais de uma captura: seta que não leva a lugar nenhum confunde. -->
+      <button type="button" class="galeria-seta galeria-seta-anterior"
+              th:if="${#lists.size(s.imagens) > 1}"
+              aria-label="Imagem anterior deste sistema">&#8249;</button>
+      <button type="button" class="galeria-seta galeria-seta-proxima"
+              th:if="${#lists.size(s.imagens) > 1}"
+              aria-label="Próxima imagem deste sistema">&#8250;</button>
+    </div>
+
+    <div class="galeria-rodape" th:if="${not #lists.isEmpty(s.imagens)}">
+      <p class="galeria-legenda" aria-live="polite">
+        <span th:each="img, i : ${s.imagens}" class="legenda-item"
+              th:classappend="${i.first} ? ' ativa'" th:attr="data-legenda=${i.index}">
+          <b th:text="${img.rotulo}">Operação</b>
+          <span th:text="${img.legenda}">Descrição.</span>
+        </span>
+      </p>
+      <div class="galeria-contador">
+        <span class="galeria-atual">1</span>/<span th:text="${#lists.size(s.imagens)}">3</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Moldura vazia da vaga reservada: mesma proporção das outras, para o
+       carrossel não mudar de altura ao passar por ela. -->
+  <div class="sistema-galeria" th:if="${s.emBreve}">
+    <div class="moldura moldura-vazia">
+      <span class="marca-breve">Em breve</span>
+    </div>
+    <!-- Reserva o espaço do rodapé da galeria. Sem ele, o carrossel encolhe
+         51px ao passar por uma vaga e o conteúdo abaixo pula a cada volta. -->
+    <div class="galeria-rodape-vazio" aria-hidden="true"></div>
+  </div>
+
+  </div>
+</div>
+
+
+<!-- ======================================================================
+     FIXA — só o primeiro sistema, sem rotação.
+     ====================================================================== -->
+<section th:fragment="fixa" class="vitrine-sistemas">
+  <div class="envelope">
+    <div th:replace="~{site/_aberturas :: envelopeSistema(${slides[0]}, true)}"></div>
+  </div>
+</section>
+
+
+<!-- ======================================================================
+     CARROSSEL — os sistemas se alternam.
+
+     Rotação automática só se defende com as saídas que ela exige: pausa,
+     indicadores, parada ao passar o mouse ou receber foco, e nascer parada
+     para quem configurou o sistema com menos movimento.
+     ====================================================================== -->
+<section th:fragment="carrossel" class="vitrine-sistemas carrossel"
+         role="group" aria-roledescription="carrossel"
+         aria-label="Sistemas da Drlog" th:attr="data-intervalo=7000">
+  <div class="envelope">
+
+    <div class="carrossel-palco">
+      <div th:each="s, i : ${slides}" class="carrossel-slide"
+           role="group" aria-roledescription="slide"
+           th:attr="data-slide=${i.index},
+                    aria-label=${i.count} + ' de ' + ${#lists.size(slides)} + ': ' + ${s.titulo}"
+           th:classappend="${i.first} ? ' ativo'">
+        <div th:replace="~{site/_aberturas :: envelopeSistema(${s}, ${i.first})}"></div>
+      </div>
+    </div>
+
+    <div class="carrossel-controles" th:if="${#lists.size(slides) > 1}">
+      <button type="button" class="carrossel-pausa" aria-label="Pausar a troca automática">
+        <span class="sinal-pausa" aria-hidden="true"></span><span class="pausa-texto"> Pausar</span>
+      </button>
+      <div class="carrossel-pontos">
+        <button th:each="s, i : ${slides}" type="button" class="carrossel-ponto"
+                th:classappend="${i.first} ? ' ativo'" th:attr="data-ir=${i.index}"
+                th:aria-label="'Ver ' + ${s.titulo}"></button>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+</body>
+</html>

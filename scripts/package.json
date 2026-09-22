@@ -1,0 +1,11 @@
+{
+  "name": "portal-drlog-scripts",
+  "private": true,
+  "description": "Ferramentas de apoio. Hoje só a captura das telas do Styllus para a vitrine.",
+  "scripts": {
+    "capturar": "node capturar-telas.js"
+  },
+  "dependencies": {
+    "puppeteer-core": "^25.11.0"
+  }
+}

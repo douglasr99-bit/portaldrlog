@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0B1220">
+  <title>Meus sistemas — Portal Drlog</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="stylesheet" th:href="@{/css/portal.css}">
+</head>
+<body>
+
+  <header class="topo">
+    <div class="topo-interno">
+      <div class="marca-topo">
+        <span class="marca-nome-topo">Drlog</span>
+        <span class="marca-sub-topo">Portal</span>
+      </div>
+      <div class="topo-conta">
+        <span class="conta-nome" th:text="${conta.nome}">Administrador</span>
+        <form th:action="@{/logout}" method="post" class="form-sair">
+          <button class="botao botao-discreto" type="submit">Sair</button>
+        </form>
+      </div>
+    </div>
+  </header>
+
+  <main class="conteudo">
+
+    <div th:if="${#lists.isEmpty(linhas)}" class="vazio">
+      <h1 class="titulo">Nenhum assinante vinculado</h1>
+      <p class="texto-apoio">
+        Sua conta ainda não administra nenhuma loja. Se isso não era esperado,
+        fale com quem criou o acesso.
+      </p>
+    </div>
+
+    <div th:each="linha : ${linhas}" class="bloco-tenant">
+
+      <div class="cabecalho-tenant">
+        <h1 class="titulo" th:text="${linha.tenant.nome}">Styllus Sapataria</h1>
+        <span class="etiqueta" th:text="${linha.papel}">dono</span>
+      </div>
+      <p class="codigo-tenant">
+        código <code th:text="${linha.tenant.codigo}">styllos</code>
+      </p>
+
+      <p class="texto-apoio" th:if="${#lists.isEmpty(linha.assinaturas)}">
+        Nenhum sistema contratado ainda.
+      </p>
+
+      <div class="grade">
+        <article th:each="a : ${linha.assinaturas}" class="cartao-sistema">
+          <div class="cartao-topo">
+            <h2 class="cartao-titulo" th:text="${a.produto.nome}">Styllus</h2>
+            <span class="selo"
+                  th:classappend="${a.permiteAcesso()} ? 'selo-ok' : 'selo-bloqueado'"
+                  th:text="${a.estado}">ativa</span>
+          </div>
+
+          <p class="cartao-plano">
+            <span th:text="${a.plano.nome}">Mensal</span> ·
+            <span th:text="${a.plano.precoFormatado()}">R$ 99,00</span>
+          </p>
+
+          <p class="cartao-validade" th:if="${a.acessoAte != null}">
+            Acesso até
+            <span th:text="${#temporals.format(a.acessoAte, 'dd/MM/yyyy')}">30/09/2026</span>
+          </p>
+
+          <!--
+            O botão fica desabilitado até a etapa 2 existir. Mostrá-lo
+            funcionando antes do handoff levaria o assinante a um sistema que
+            ainda não sabe receber o token.
+          -->
+          <button class="botao botao-primario botao-bloco" type="button" disabled
+                  th:if="${a.permiteAcesso()}">
+            Abrir sistema
+          </button>
+          <p class="cartao-nota" th:unless="${a.permiteAcesso()}">
+            Acesso bloqueado. Regularize a assinatura para voltar a usar.
+          </p>
+        </article>
+      </div>
+    </div>
+
+    <section class="catalogo" th:if="${not #lists.isEmpty(disponiveis)}">
+      <h2 class="titulo-secao">Disponíveis na plataforma</h2>
+      <div class="grade">
+        <article th:each="p : ${disponiveis}" class="cartao-sistema cartao-catalogo">
+          <h3 class="cartao-titulo" th:text="${p.nome}">Styllus</h3>
+          <p class="cartao-descricao" th:text="${p.descricao}">Gestão de sapataria.</p>
+        </article>
+      </div>
+    </section>
+
+  </main>
+
+</body>
+</html>

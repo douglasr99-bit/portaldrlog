@@ -1,0 +1,15 @@
+target/
+*.jar
+*.class
+
+.env
+.env.local
+
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+.dev.pid
+
+node_modules/
