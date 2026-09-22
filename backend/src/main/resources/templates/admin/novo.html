@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0B1220">
+  <title>Novo assinante — Portal Drlog</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="stylesheet" th:href="@{/css/portal.css}">
+</head>
+<body>
+
+<header class="topo">
+  <div class="topo-interno">
+    <div class="marca-topo">
+      <span class="marca-nome-topo">Drlog</span>
+      <span class="marca-sub-topo">Administração</span>
+    </div>
+    <div class="topo-conta">
+      <a class="botao botao-discreto" th:href="@{/admin}">Voltar</a>
+    </div>
+  </div>
+</header>
+
+<main class="conteudo conteudo-estreito">
+
+  <h1 class="titulo">Novo assinante</h1>
+  <p class="texto-apoio">
+    Cria a loja, a conta do responsável e a assinatura — tudo de uma vez.
+  </p>
+
+  <div class="alerta alerta-erro" th:if="${erro}" role="alert" th:text="${erro}"></div>
+
+  <form th:action="@{/admin/assinantes}" method="post" class="formulario">
+
+    <div class="secao-form">A loja</div>
+
+    <div class="campo">
+      <label class="rotulo" for="nomeLoja">Nome da loja</label>
+      <input class="entrada" id="nomeLoja" name="nomeLoja" required autofocus
+             th:value="${nomeLoja}" placeholder="Sapataria Boa Vista">
+    </div>
+
+    <div class="campo">
+      <label class="rotulo" for="documento">CNPJ ou CPF <span class="opcional">(opcional)</span></label>
+      <input class="entrada" id="documento" name="documento" th:value="${documento}">
+    </div>
+
+    <div class="campo">
+      <label class="rotulo" for="codigo">Código <span class="opcional">(opcional)</span></label>
+      <input class="entrada" id="codigo" name="codigo" th:value="${codigo}"
+             placeholder="gerado a partir do nome">
+      <p class="ajuda">
+        É o identificador que vai para dentro dos dados do sistema e
+        <b>nunca muda</b>. Em branco, é gerado a partir do nome.
+      </p>
+    </div>
+
+    <div class="secao-form">O que ele contrata</div>
+
+    <div class="campo">
+      <label class="rotulo" for="planoId">Plano</label>
+      <select class="entrada" id="planoId" name="planoId" required>
+        <option th:each="p : ${planos}" th:value="${p.id}"
+                th:selected="${planoId != null and planoId.toString() == p.id.toString()}"
+                th:text="${p.produto.nome} + ' — ' + ${p.nome} + ' · ' + ${p.precoFormatado()}">
+          Styllus — Mensal · R$ 99,00
+        </option>
+      </select>
+      <p class="ajuda">O acesso já começa liberado por um ciclo, a partir de hoje.</p>
+    </div>
+
+    <div class="secao-form">Quem vai acessar</div>
+
+    <div class="campo">
+      <label class="rotulo" for="nomeResponsavel">Nome do responsável</label>
+      <input class="entrada" id="nomeResponsavel" name="nomeResponsavel" required
+             th:value="${nomeResponsavel}">
+    </div>
+
+    <div class="campo">
+      <label class="rotulo" for="email">E-mail</label>
+      <input class="entrada" type="email" id="email" name="email" required
+             autocapitalize="none" spellcheck="false" th:value="${email}">
+      <p class="ajuda">É com ele que o responsável entra no Portal.</p>
+    </div>
+
+    <div class="campo">
+      <label class="rotulo" for="senha">Senha inicial</label>
+      <input class="entrada" id="senha" name="senha" required minlength="8"
+             autocomplete="new-password">
+      <p class="ajuda">
+        Mínimo de 8 caracteres. <b>Anote antes de salvar</b> — ela é gravada
+        como hash e não tem como ser lida depois.
+      </p>
+    </div>
+
+    <button class="botao botao-primario botao-bloco" type="submit">Criar assinante</button>
+  </form>
+
+</main>
+</body>
+</html>

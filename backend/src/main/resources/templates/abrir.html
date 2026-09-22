@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0B1220">
+  <!-- Página de passagem: não deve ser indexada. -->
+  <meta name="robots" content="noindex, nofollow">
+  <title th:text="'Abrindo ' + ${produto} + '…'">Abrindo…</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" th:href="@{/css/portal.css}">
+</head>
+<body>
+
+<main class="tela-centro">
+  <div class="cartao-login">
+    <div class="marca">
+      <div class="marca-nome">Drlog</div>
+      <div class="marca-sub" th:text="'Abrindo ' + ${produto}">Abrindo o sistema</div>
+      <div class="marca-linha"></div>
+    </div>
+
+    <!-- O token vai no corpo do POST. Com JavaScript, o envio é imediato e a
+         página nem chega a ser vista. Sem JavaScript, o botão faz o mesmo —
+         a passagem não pode depender de script para funcionar. -->
+    <form id="passagem" th:action="${destino}" method="post">
+      <input type="hidden" name="token" th:value="${token}">
+      <noscript>
+        <p class="rodape-login">Clique para continuar:</p>
+      </noscript>
+      <button class="botao botao-primario botao-bloco" type="submit">Continuar</button>
+    </form>
+
+    <p class="rodape-login">Levando você ao sistema…</p>
+  </div>
+</main>
+
+<script>
+  document.getElementById('passagem').submit();
+  // replaceState para que o "voltar" do navegador não traga a pessoa a uma
+  // página cujo token já foi consumido do outro lado.
+  history.replaceState(null, '', '/painel');
+</script>
+</body>
+</html>

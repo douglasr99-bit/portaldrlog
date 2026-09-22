@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0B1220">
+  <title>Assinantes — Portal Drlog</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="stylesheet" th:href="@{/css/portal.css}">
+</head>
+<body>
+
+<header class="topo">
+  <div class="topo-interno">
+    <div class="marca-topo">
+      <span class="marca-nome-topo">Drlog</span>
+      <span class="marca-sub-topo">Administração</span>
+    </div>
+    <div class="topo-conta">
+      <a class="botao botao-discreto" th:href="@{/painel}">Meu painel</a>
+      <form th:action="@{/logout}" method="post" class="form-sair">
+        <button class="botao botao-discreto" type="submit">Sair</button>
+      </form>
+    </div>
+  </div>
+</header>
+
+<main class="conteudo">
+
+  <div class="alerta alerta-ok"   th:if="${sucesso}" role="status" th:text="${sucesso}"></div>
+  <div class="alerta alerta-erro" th:if="${erro}"    role="alert"  th:text="${erro}"></div>
+
+  <div class="cabecalho-admin">
+    <h1 class="titulo">Assinantes</h1>
+    <a class="botao botao-primario" th:href="@{/admin/novo}">Novo assinante</a>
+  </div>
+
+  <p class="texto-apoio" th:if="${#lists.isEmpty(linhas)}">
+    Nenhum assinante ainda.
+  </p>
+
+  <div class="tabela-rolagem" th:unless="${#lists.isEmpty(linhas)}">
+    <table class="tabela">
+      <thead>
+        <tr>
+          <th>Loja</th><th>Sistema</th><th>Plano</th>
+          <th>Situação</th><th>Acesso até</th><th>Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        <th:block th:each="linha : ${linhas}">
+
+          <!-- Assinante sem nada contratado. Precisa aparecer: se sumir da
+               tela, alguém cria outro e a loja vira duas. -->
+          <tr th:if="${#lists.isEmpty(linha.assinaturas)}">
+            <td>
+              <b th:text="${linha.tenant.nome}">Sapataria</b>
+              <span class="codigo" th:text="${linha.tenant.codigo}">codigo</span>
+            </td>
+            <td colspan="4" class="texto-fraco">Nenhum sistema contratado</td>
+            <td class="acoes">
+              <form th:action="@{'/admin/assinantes/' + ${linha.tenant.id} + '/contratar'}"
+                    method="post" class="form-contratar">
+                <select class="entrada entrada-mini" name="planoId" required>
+                  <option th:each="p : ${planos}" th:value="${p.id}"
+                          th:text="${p.produto.nome} + ' · ' + ${p.precoFormatado()}">Styllus</option>
+                </select>
+                <button class="botao botao-primario botao-mini" type="submit">Contratar</button>
+              </form>
+            </td>
+          </tr>
+
+          <tr th:each="a : ${linha.assinaturas}">
+            <td>
+              <b th:text="${linha.tenant.nome}">Sapataria</b>
+              <span class="codigo" th:text="${linha.tenant.codigo}">codigo</span>
+            </td>
+            <td th:text="${a.produto.nome}">Styllus</td>
+            <td>
+              <span th:text="${a.plano.nome}">Mensal</span><br>
+              <span class="texto-fraco" th:text="${a.plano.precoFormatado()}">R$ 99,00</span>
+            </td>
+            <td>
+              <span class="selo"
+                    th:classappend="${a.permiteAcesso()} ? ' selo-ok' : ' selo-bloqueado'"
+                    th:text="${a.estado}">ativa</span>
+            </td>
+            <td>
+              <span th:if="${a.acessoAte != null}"
+                    th:text="${#temporals.format(a.acessoAte, 'dd/MM/yyyy')}">30/09/2026</span>
+              <span th:unless="${a.acessoAte != null}" class="texto-fraco">&mdash;</span>
+              <!-- O aviso que impede o cliente pagante de ser trancado por
+                   esquecimento: aparece antes de vencer, não depois. -->
+              <span class="aviso-vence" th:if="${a.acessoAte != null
+                    and a.acessoAte.isBefore(T(java.time.Instant).now().plusSeconds(604800))
+                    and a.acessoAte.isAfter(T(java.time.Instant).now())}">vence em breve</span>
+            </td>
+            <td class="acoes">
+              <form th:action="@{'/admin/assinaturas/' + ${a.id} + '/renovar'}" method="post">
+                <button class="botao botao-primario botao-mini" type="submit">Renovar</button>
+              </form>
+              <form th:action="@{'/admin/assinaturas/' + ${a.id} + '/estado'}" method="post"
+                    th:if="${a.estado.name() != 'suspensa'}">
+                <input type="hidden" name="estado" value="suspensa">
+                <button class="botao botao-discreto botao-mini" type="submit">Suspender</button>
+              </form>
+              <form th:action="@{'/admin/assinaturas/' + ${a.id} + '/estado'}" method="post"
+                    th:if="${a.estado.name() == 'suspensa'}">
+                <input type="hidden" name="estado" value="ativa">
+                <button class="botao botao-discreto botao-mini" type="submit">Reativar</button>
+              </form>
+            </td>
+          </tr>
+
+        </th:block>
+      </tbody>
+    </table>
+  </div>
+
+</main>
+</body>
+</html>

@@ -22,6 +22,7 @@ public class ContaAutenticada implements UserDetails {
     private final String nome;
     private final String senhaHash;
     private final boolean ativa;
+    private final boolean admin;
 
     public ContaAutenticada(Conta conta) {
         this.id = conta.getId();
@@ -29,14 +30,20 @@ public class ContaAutenticada implements UserDetails {
         this.nome = conta.getNome();
         this.senhaHash = conta.getSenhaHash();
         this.ativa = conta.isAtiva();
+        this.admin = conta.isAdmin();
     }
 
     public UUID getId() { return id; }
     public String getNome() { return nome; }
     public String getEmail() { return email; }
 
+    public boolean isAdmin() { return admin; }
+
     @Override public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_ASSINANTE"));
+        return admin
+                ? List.of(new SimpleGrantedAuthority("ROLE_ASSINANTE"),
+                          new SimpleGrantedAuthority("ROLE_ADMIN"))
+                : List.of(new SimpleGrantedAuthority("ROLE_ASSINANTE"));
     }
     @Override public String getPassword() { return senhaHash; }
     @Override public String getUsername() { return email; }

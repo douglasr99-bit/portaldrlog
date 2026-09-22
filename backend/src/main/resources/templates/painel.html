@@ -20,6 +20,7 @@
       </div>
       <div class="topo-conta">
         <span class="conta-nome" th:text="${conta.nome}">Administrador</span>
+        <a class="botao botao-discreto" th:if="${conta.admin}" th:href="@{/admin}">Administração</a>
         <form th:action="@{/logout}" method="post" class="form-sair">
           <button class="botao botao-discreto" type="submit">Sair</button>
         </form>
@@ -28,6 +29,8 @@
   </header>
 
   <main class="conteudo">
+
+    <div class="alerta alerta-erro" th:if="${erro}" role="alert" th:text="${erro}"></div>
 
     <div th:if="${#lists.isEmpty(linhas)}" class="vazio">
       <h1 class="titulo">Nenhum assinante vinculado</h1>
@@ -70,15 +73,12 @@
             <span th:text="${#temporals.format(a.acessoAte, 'dd/MM/yyyy')}">30/09/2026</span>
           </p>
 
-          <!--
-            O botão fica desabilitado até a etapa 2 existir. Mostrá-lo
-            funcionando antes do handoff levaria o assinante a um sistema que
-            ainda não sabe receber o token.
-          -->
-          <button class="botao botao-primario botao-bloco" type="button" disabled
-                  th:if="${a.permiteAcesso()}">
-            Abrir sistema
-          </button>
+          <form th:action="@{'/abrir/' + ${a.id}}" method="post"
+                th:if="${a.permiteAcesso()}">
+            <button class="botao botao-primario botao-bloco" type="submit">
+              Abrir sistema
+            </button>
+          </form>
           <p class="cartao-nota" th:unless="${a.permiteAcesso()}">
             Acesso bloqueado. Regularize a assinatura para voltar a usar.
           </p>

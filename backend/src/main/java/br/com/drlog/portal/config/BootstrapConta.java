@@ -39,6 +39,16 @@ public class BootstrapConta {
     @Value("${app.admin.senha:}")
     private String senhaConfigurada;
 
+    /**
+     * A chave de assinatura nasce junto com a aplicação, e não na primeira
+     * emissão: assim o JWKS já está completo quando o primeiro sistema
+     * vendido for consultá-lo.
+     */
+    @Bean
+    ApplicationRunner prepararChaveDeAssinatura(br.com.drlog.portal.service.EmissorDeToken emissor) {
+        return args -> emissor.chaveAtiva();
+    }
+
     @Bean
     ApplicationRunner criarPrimeiraConta(ContaRepository contas,
                                          TenantRepository tenants,
@@ -74,6 +84,7 @@ public class BootstrapConta {
                 .senhaHash(encoder.encode(senha))
                 .nome("Administrador")
                 .ativa(true)
+                .admin(true)
                 .build());
 
         // Vincula ao assinante que já existe, para que o primeiro login tenha

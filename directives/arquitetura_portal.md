@@ -1077,3 +1077,243 @@ não apenas o pid do arquivo.
 
 O arquivo de pid sozinho nunca foi suficiente — ele descreve a última
 instância iniciada, não a que está atendendo.
+
+---
+
+## 19. Tela de administração
+
+Primeiro passo da sequência operacional: tirar do caminho o SQL digitado à mão
+e a renovação que dependia da memória de alguém. Chega **antes** da cobrança
+automática de propósito — enquanto o pagamento for combinado no WhatsApp, é
+esta tela que registra o resultado. Quando o gateway existir, ele passa a
+chamar os mesmos métodos.
+
+### Contas que administram a plataforma
+
+`V3` acrescentou `contas.admin`, falso por padrão: conta nova nasce sem poder
+nenhum sobre a plataforma, e conceder é ato explícito. A migração marca a
+conta mais antiga — a do primeiro acesso — porque sem isso ninguém entraria em
+`/admin` e não haveria caminho para conceder o acesso a ninguém.
+
+Não se confunde com o papel dentro de um assinante: `dono` responde por uma
+loja, `admin` responde pela Drlog. A rota `/admin/**` exige `ROLE_ADMIN`, e
+não apenas estar autenticado.
+
+### O que a tela faz
+
+| Ação | Detalhe |
+| :--- | :--- |
+| Criar assinante | Loja, conta do responsável, vínculo e assinatura, numa transação só |
+| Contratar | Assina um sistema para um assinante que já existe |
+| Renovar | Estende um ciclo |
+| Suspender / reativar | Corta e devolve o acesso |
+
+**Tudo ou nada na criação.** Criar a loja e falhar na conta deixaria um
+assinante sem ninguém capaz de entrar nele, e o conserto seria exatamente o
+SQL na mão que a tela veio eliminar.
+
+### Duas decisões que protegem o cliente
+
+**Renovar conta a partir do vencimento, não de hoje.** Quem paga com cinco
+dias de antecedência não pode perder esses cinco dias. Se já venceu, conta de
+hoje — o período bloqueado não é devolvido. Verificado: 22/10 → 21/11 → 21/12
+em duas renovações seguidas.
+
+**Aviso de vencimento próximo na listagem**, sete dias antes. O acesso é
+liberado pela data, o que corta o inadimplente sozinho — e cortaria também
+quem pagou, se a renovação fosse esquecida. Um cliente pagante trancado numa
+segunda de manhã custa a confiança que a vitrine inteira existe para
+construir.
+
+### O código do assinante é gerado do nome
+
+"Sapataria Boa Vista" vira `sapataria-boa-vista`. É o valor que vai para
+dentro dos dados de todos os sistemas vendidos e que **nunca muda** — legível
+de propósito, porque quando alguém for ler um log ou uma consulta, um nome diz
+de quem é o dado e um uuid não.
+
+Colisão é esperada (duas "Sapataria Central" em cidades diferentes) e ganha
+sufixo: `sapataria-boa-vista-2`.
+
+### Um defeito de modelagem, corrigido antes de doer
+
+A listagem começou mostrando **assinaturas**. Com isso, um assinante que ainda
+não contratou nada sumia da tela — inclusive a loja que já estava em produção,
+semeada pela `V1`, que não tem linha em `assinaturas`. Quem administrasse
+concluiria que ela não existe e criaria outra, duplicando a loja.
+
+Passou a listar **assinantes**, com o que cada um contratou — nada, um ou
+vários sistemas. E a linha sem assinatura ganhou o botão de contratar: um
+problema visível e intocável na tela é pior que problema nenhum.
+
+### Verificação feita
+
+| Cenário | Resultado |
+| :--- | :--- |
+| Conta do primeiro acesso é admin | `/admin` responde 200 |
+| Assinante criado pela tela | código gerado, mensagem de sucesso |
+| O assinante criado entra no Portal | 200, vê só a loja dele |
+| Assinante tentando `/admin` | 403, e o atalho não aparece no painel dele |
+| Renovar duas vezes | +30 e +30 sobre o vencimento |
+| Suspender | cliente vê "suspensa", sem botão, com aviso de bloqueio |
+| Reativar | volta a liberar |
+| E-mail repetido / senha curta / código repetido | recusado com mensagem específica |
+| Nome repetido | sufixo `-2` |
+| Contratar para assinante existente | assinatura criada |
+| Contratar o mesmo sistema duas vezes | recusado com mensagem |
+| Erros de console | nenhum |
+
+### O que esta tela ainda não faz
+
+- **Adicionar uma segunda pessoa** a um assinante (o balconista, além do dono).
+  A tabela `conta_tenant` já suporta; falta a tela.
+- **Trocar a senha** de um cliente que esqueceu.
+- **Editar** nome, documento ou plano de quem já existe.
+- **Cancelar** — há suspender, que é reversível; cancelar de vez não está
+  exposto.
+
+Nenhum desses bloqueia vender o primeiro assinante. Todos viram necessários
+por volta do terceiro.
+
+
+---
+
+## 20. Etapa 2 — entrada pelo Portal
+
+O botão "Abrir sistema" passou a funcionar. Um login só, e o acesso passou a
+depender da assinatura estar em dia.
+
+### O caminho, de ponta a ponta
+
+```
+  Portal                                      Styllus
+    │
+    │ POST /abrir/{assinatura}
+    │   confere: a conta está vinculada a este assinante?
+    │            a assinatura permite acesso AGORA?
+    │   assina o token (RS256, 60s, jti único)
+    │
+    │ devolve uma página que se envia sozinha ──▶ POST /sso
+    │                                              │ busca a chave no JWKS
+    │◀── GET /.well-known/jwks.json ───────────────┤ confere assinatura, iss, exp
+    │                                              │ confere aud == produto
+    │                                              │ consome o jti
+    │                                              │ grava tenant_config
+    │                                              │ abre a sessão
+    │                                    302 → /index.html
+```
+
+### Decisões
+
+**Assimétrico, não segredo compartilhado.** Com HS256 cada sistema vendido
+carregaria uma chave capaz de **forjar** token de qualquer assinante: o
+comprometimento de um sistema periférico viraria o da plataforma inteira.
+O Styllus só sabe conferir.
+
+**A chave mora no banco do Portal**, criada no primeiro boot. Em memória, ela
+mudaria a cada reinício e o JWKS mudaria junto — o sistema vendido, que guarda
+o JWKS em cache, passaria a recusar tokens legítimos sem nada indicar o
+motivo.
+
+**POST, não `?token=` na URL.** Query string entra no log de acesso do proxy,
+no histórico do navegador e no `Referer` de toda requisição seguinte.
+
+**`/abrir` é POST**, não GET: emitir token tem efeito (consome um jti). Em GET,
+um `<img src>` numa página qualquer dispararia a emissão.
+
+**O token não carrega segredo.** Ele passa pelo navegador — o que estiver
+dentro é público para quem o tiver em mãos. Identidade e autorização entram;
+chave de instância de WhatsApp, não. Esta continua sendo a regra para a
+etapa 4.
+
+**Uso único.** Sessenta segundos é curto, não zero. `tickets_sso` guarda o
+`jti` do que já entrou, e a segunda apresentação é recusada.
+
+**`/sso` fora do CSRF.** O POST vem de outra origem e não tem como portar o
+token CSRF do Styllus. A proteção equivalente é o próprio token: assinado, de
+60 segundos e de uso único — um POST forjado não tem como produzi-lo.
+
+### O modo antigo continua sendo o padrão
+
+`APP_AUTH_MODO` vale `formulario` por padrão. Uma reimplantação sem configurar
+nada **não pode trancar a loja que já está no ar** — e no modo portal o
+formulário não teria o que fazer: quem entra por ele chega sem token e,
+portanto, sem loja.
+
+Em `portal`, o formulário é desativado e o tenant vem do token.
+
+### A resposta à pergunta "os dados não vão se misturar?"
+
+O risco existe e está concentrado em um lugar: o `ThreadLocal` do
+`TenantContext`, preenchido pelo `TenantFilter`.
+
+Duas decisões o sustentam:
+
+**A limpeza está num `finally`.** O Tomcat reaproveita threads entre
+requisições; um ThreadLocal não limpo é herdado pela próxima requisição
+daquela thread, possivelmente de outra loja.
+
+**Sem tenant, no modo portal, é erro — nunca um padrão.** Cair para um tenant
+fixo seria o pior comportamento possível: em vez de falhar, a aplicação leria
+e gravaria dados de uma loja qualquer, de forma silenciosa e plausível.
+Melhor uma requisição que explode do que uma que responde errado.
+
+### O teste de concorrência, e o controle negativo
+
+`scripts/teste-isolamento.sh`: duas lojas entram pelo Portal, cadastram dados
+próprios e são consultadas **ao mesmo tempo**, 400 requisições com 30 em
+paralelo. Cada resposta é conferida contra o prefixo da outra loja.
+
+Um teste sequencial passaria mesmo com o bug — ele só aparece quando duas
+lojas disputam as mesmas threads.
+
+**E um teste que sempre passa não prova nada.** O `TenantFilter` foi sabotado
+de propósito (tenant fixo em vez do principal) e o teste foi rodado de novo:
+**60 de 60 requisições acusaram vazamento**, e a loja 2 passou a enxergar os
+clientes da loja 1. Com o filtro restaurado, 400 de 400 limpas. O detector
+funciona.
+
+### Dois defeitos encontrados no caminho
+
+**O JWKS nascia vazio.** A chave era criada na primeira emissão, e o JWKS
+consultado antes disso devolvia `{"keys":[]}` — que o sistema vendido guarda
+em cache por cinco minutos. O token estaria certo, a assinatura certa, e a
+recusa viria de um conjunto vazio guardado minutos antes. A chave passou a
+nascer no boot, e o próprio `jwks()` a garante.
+
+**`changeSessionId()` lançava exceção.** Na entrada pelo Portal normalmente
+não existe sessão, e o método exige uma. Trocado por invalidar a anterior (se
+houver) e criar uma nova — que dá a mesma garantia contra fixação de sessão.
+
+### Verificação feita
+
+| Cenário | Resultado |
+| :--- | :--- |
+| Entrada completa Portal → Styllus | 302 → `/index.html`, API responde 200 |
+| Serviço cadastrado depois da entrada | gravado com o `tenant_id` do token |
+| `tenant_config` preenchida | `styllos = Styllus Sapataria` |
+| Mesmo token apresentado de novo | recusado, `erro=reuso` |
+| Assinatura do token adulterada | recusado, `erro=token` |
+| Texto qualquer no lugar do token | recusado, `erro=token` |
+| Formulário do Styllus no modo portal | desativado; não autentica |
+| Assinatura suspensa | o Portal **não emite** o token e avisa no painel |
+| 400 requisições concorrentes, duas lojas | **0 vazamentos** |
+| Mesmo teste com o filtro sabotado | **60 de 60 vazamentos detectados** |
+| Requisições sem sessão, sob concorrência | 401 |
+| JWKS | publica só a chave pública; nunca o expoente privado |
+
+### O que a etapa 2 deixa em aberto
+
+**A sessão do Styllus ainda não tem validade absoluta.** A seção 4.4 decidiu
+12 horas, para que o cancelamento surta efeito sem o Styllus consultar o
+Portal. Não está implementado: hoje vale o padrão do Tomcat (30 minutos de
+inatividade), o que por acaso é mais curto — mas por inatividade, não por
+tempo absoluto.
+
+**O nome da loja ainda está escrito dentro do `EvolutionApiService`.** A
+`tenant_config` já guarda o nome certo; falta usá-lo. Isso é etapa 4, junto
+com a instância de WhatsApp por assinante — e **continua sendo o bloqueio do
+segundo assinante**.
+
+**O expurgo de `tickets_sso` não roda sozinho.** O método existe no
+repositório; falta agendá-lo. A tabela cresce um registro por entrada.

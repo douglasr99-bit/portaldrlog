@@ -20,5 +20,10 @@ public interface AssinaturaRepository extends Repository<Assinatura, UUID> {
      */
     Optional<Assinatura> findByTenantAndProduto(Tenant tenant, Produto produto);
 
+    Optional<Assinatura> findById(UUID id);
+
+    /** Todas as assinaturas, para a tela de administração. */
+    List<Assinatura> findAllByOrderByCriadaEmDesc();
+
     Assinatura save(Assinatura assinatura);
 }

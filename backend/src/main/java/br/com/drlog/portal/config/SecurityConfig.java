@@ -54,6 +54,9 @@ public class SecurityConfig {
                 // vendidos usam para verificar o token. É público por
                 // definição — é a chave pública.
                 .requestMatchers("/.well-known/**").permitAll()
+                // A administração da plataforma é outra coisa que ser
+                // assinante: exige a marca explícita na conta.
+                .requestMatchers("/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .formLogin(login -> login

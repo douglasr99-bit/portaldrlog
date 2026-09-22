@@ -36,6 +36,16 @@ public class Conta {
     @Builder.Default
     private boolean ativa = true;
 
+    /**
+     * Se a conta administra a plataforma — cria assinantes, renova, suspende.
+     *
+     * Não se confunde com o papel dentro de um assinante: `dono` responde por
+     * uma loja; `admin` responde pela Drlog.
+     */
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean admin = false;
+
     @Column(name = "criada_em", nullable = false)
     private Instant criadaEm;
 

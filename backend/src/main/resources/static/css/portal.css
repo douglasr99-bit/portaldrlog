@@ -110,6 +110,10 @@ body {
 /* ---------- botões ---------- */
 
 .botao {
+  /* Também usado em <a>: sem isto o link vem sublinhado e o botão fica com
+     cara de texto clicável, não de botão. */
+  display: inline-flex; align-items: center; justify-content: center;
+  text-decoration: none;
   font-size: 15px; font-weight: 600;
   /* 44px de altura mínima: alvo de toque confortável no celular. */
   min-height: 44px;
@@ -227,4 +231,79 @@ body {
   .topo-interno { padding: 12px 16px; }
   .conteudo { padding: 24px 16px 48px; }
   .conta-nome { display: none; }
+}
+
+
+/* ==========================================================================
+   ADMINISTRAÇÃO
+   ========================================================================== */
+
+.conteudo-estreito { max-width: 620px; }
+
+.cabecalho-admin {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; margin-bottom: 24px;
+}
+
+.alerta-ok { background: var(--ok-bg); color: var(--ok); }
+
+/* Tabela larga não cabe em celular. Rola dentro da própria caixa, em vez de
+   empurrar a página inteira para o lado. */
+.tabela-rolagem {
+  overflow-x: auto;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--superficie);
+}
+.tabela { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tabela th {
+  text-align: left; font-size: 11.5px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .08em;
+  color: var(--texto-fraco);
+  padding: 13px 16px; border-bottom: 1px solid var(--borda);
+  white-space: nowrap;
+}
+.tabela td {
+  padding: 14px 16px; border-bottom: 1px solid var(--borda);
+  vertical-align: top; color: var(--texto-suave);
+}
+.tabela tr:last-child td { border-bottom: 0; }
+.tabela b { color: var(--texto); display: block; }
+
+.codigo {
+  font-size: 12px; color: var(--texto-fraco);
+  background: var(--superficie-2); border-radius: 4px;
+  padding: 1px 6px; display: inline-block; margin-top: 4px;
+}
+.texto-fraco { color: var(--texto-fraco); }
+
+.aviso-vence {
+  display: block; margin-top: 4px;
+  font-size: 11.5px; font-weight: 600; color: var(--warning);
+}
+
+.acoes { display: flex; gap: 6px; flex-wrap: wrap; }
+.acoes form { margin: 0; }
+.botao-mini { min-height: 32px; padding: 5px 12px; font-size: 12.5px; }
+
+/* ---------- formulário ---------- */
+
+.formulario { margin-top: 26px; }
+.secao-form {
+  font-size: 11.5px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .12em;
+  color: var(--texto-fraco);
+  padding-bottom: 8px; margin: 28px 0 16px;
+  border-bottom: 1px solid var(--borda);
+}
+.secao-form:first-of-type { margin-top: 8px; }
+.opcional { font-weight: 400; color: var(--texto-fraco); text-transform: none; }
+.ajuda { font-size: 12.5px; color: var(--texto-fraco); margin-top: 6px; line-height: 1.45; }
+.ajuda b { color: var(--texto-suave); }
+select.entrada { appearance: none; }
+
+.form-contratar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.entrada-mini {
+  width: auto; min-width: 190px;
+  font-size: 12.5px; padding: 6px 9px; min-height: 32px;
 }
