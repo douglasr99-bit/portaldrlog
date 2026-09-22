@@ -84,7 +84,7 @@ Nenhum dos três impede o Portal de existir. Os três precisam estar resolvidos
               └──┬────────────┬───────────┬──┘
                  │            │           │
                  ▼            ▼           ▼
-     portal.drlog.com.br  sapataria.  api.drlog.com.br
+     drlog.com.br  sapataria.  api.drlog.com.br
                  │        drlog.com.br      │
                  │            │             │
         ┌────────▼──────┐  ┌──▼─────────┐   │
@@ -127,7 +127,7 @@ precisa de um dado do Portal, é o Styllus quem busca.
 ### 4.1 Assinatura assimétrica, não segredo compartilhado
 
 O token é assinado com **RS256** (par de chaves), e o Portal publica a chave
-pública em `https://portal.drlog.com.br/.well-known/jwks.json`.
+pública em `https://drlog.com.br/.well-known/jwks.json`.
 
 **Por quê:** com HS256 o segredo é o mesmo dos dois lados, então cada sistema
 vendido carrega uma chave capaz de **forjar** um token de qualquer tenant de
@@ -179,7 +179,7 @@ Styllus (com expurgo do que passou de `exp`) fecha isso.
 
 ```json
 {
-  "iss": "https://portal.drlog.com.br",
+  "iss": "https://drlog.com.br",
   "aud": "styllos",
   "sub": "usr_a3f9c2e1",
   "tenant_id": "ten_7f3ab204",
