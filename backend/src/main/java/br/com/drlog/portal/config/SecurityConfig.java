@@ -61,6 +61,10 @@ public class SecurityConfig {
                 // X-Sistema-Segredo, conferido no próprio controller. Não tem
                 // sessão nem usuário — quem chama é outra aplicação.
                 .requestMatchers("/api/sistemas/**").permitAll()
+                // Webhook do gateway: quem chama é o Asaas, sem sessão. A
+                // credencial é o cabeçalho asaas-access-token, conferido no
+                // controller.
+                .requestMatchers("/api/gateway/**").permitAll()
                 .anyRequest().authenticated()
             )
             .formLogin(login -> login
@@ -84,7 +88,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf
                 // Sem cookie não há CSRF a proteger: a credencial vai num
                 // cabeçalho que um formulário de outro site não consegue pôr.
-                .ignoringRequestMatchers("/api/sistemas/**")
+                .ignoringRequestMatchers("/api/sistemas/**", "/api/gateway/**")
             )
             .sessionManagement(sessao -> sessao
                 // Troca o identificador de sessão na autenticação. Sem isso,

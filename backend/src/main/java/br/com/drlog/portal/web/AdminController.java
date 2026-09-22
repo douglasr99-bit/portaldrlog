@@ -4,6 +4,7 @@ import br.com.drlog.portal.model.EstadoAssinatura;
 import br.com.drlog.portal.repository.ProdutoRepository;
 import br.com.drlog.portal.repository.TenantRepository;
 import br.com.drlog.portal.service.AdminService;
+import br.com.drlog.portal.service.CobrancaService;
 import br.com.drlog.portal.service.ProvisionamentoService;
 import br.com.drlog.portal.service.ContaAutenticada;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -25,13 +26,16 @@ public class AdminController {
 
     private final AdminService admin;
     private final ProvisionamentoService provisionamento;
+    private final CobrancaService cobranca;
     private final TenantRepository tenants;
     private final ProdutoRepository produtos;
 
     public AdminController(AdminService admin, ProvisionamentoService provisionamento,
+                           CobrancaService cobranca,
                            TenantRepository tenants, ProdutoRepository produtos) {
         this.admin = admin;
         this.provisionamento = provisionamento;
+        this.cobranca = cobranca;
         this.tenants = tenants;
         this.produtos = produtos;
     }
@@ -43,6 +47,7 @@ public class AdminController {
         model.addAttribute("planos", admin.planosDisponiveis());
         model.addAttribute("provisionamentos", admin.provisionamentosPorTenant());
         model.addAttribute("evolutionConfigurada", provisionamento.configurado());
+        model.addAttribute("asaasConfigurado", cobranca.configurado());
         return "admin/lista";
     }
 
@@ -111,6 +116,23 @@ public class AdminController {
             }
         } catch (AdminService.Recusa e) {
             redirect.addFlashAttribute("erro", e.getMessage());
+        }
+        return "redirect:/admin";
+    }
+
+    @PostMapping("/assinaturas/{id}/cobranca")
+    public String ativarCobranca(@PathVariable UUID id, RedirectAttributes redirect) {
+        try {
+            var a = cobranca.ativarCobranca(id);
+            redirect.addFlashAttribute("sucesso",
+                    "Cobrança automática ativada para %s. O Asaas emite a próxima em %s."
+                            .formatted(a.getTenant().getNome(),
+                                    a.getAcessoAte() == null ? "breve"
+                                        : a.getAcessoAte().atZone(java.time.ZoneId.of("America/Sao_Paulo")).toLocalDate()));
+        } catch (AdminService.Recusa e) {
+            redirect.addFlashAttribute("erro", e.getMessage());
+        } catch (Exception e) {
+            redirect.addFlashAttribute("erro", "O Asaas recusou: " + e.getMessage());
         }
         return "redirect:/admin";
     }

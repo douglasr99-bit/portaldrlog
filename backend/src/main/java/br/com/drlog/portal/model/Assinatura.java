@@ -52,6 +52,26 @@ public class Assinatura {
     @Column(name = "acesso_ate")
     private Instant acessoAte;
 
+    /** Qual gateway cobra esta assinatura. Nulo enquanto for cobrança manual. */
+    private String gateway;
+
+    /**
+     * Identificadores do lado do gateway.
+     *
+     * Guardados para que uma segunda ativação não crie um segundo cliente ou
+     * uma segunda assinatura lá — o que cobraria duas vezes pelo mesmo acesso.
+     */
+    @Column(name = "gateway_cliente_id")
+    private String gatewayClienteId;
+
+    @Column(name = "gateway_assinatura_id")
+    private String gatewayAssinaturaId;
+
+    /** Se a cobrança já é automática. */
+    public boolean cobrancaAutomatica() {
+        return gatewayAssinaturaId != null && !gatewayAssinaturaId.isBlank();
+    }
+
     @Column(name = "iniciada_em", nullable = false)
     private Instant iniciadaEm;
 

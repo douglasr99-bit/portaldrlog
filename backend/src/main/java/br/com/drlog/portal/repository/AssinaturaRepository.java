@@ -25,5 +25,8 @@ public interface AssinaturaRepository extends Repository<Assinatura, UUID> {
     /** Todas as assinaturas, para a tela de administração. */
     List<Assinatura> findAllByOrderByCriadaEmDesc();
 
+    /** Para o webhook encontrar a assinatura a partir do id do gateway. */
+    Optional<Assinatura> findByGatewayAndGatewayAssinaturaId(String gateway, String assinaturaId);
+
     Assinatura save(Assinatura assinatura);
 }

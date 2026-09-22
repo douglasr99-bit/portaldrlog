@@ -67,6 +67,17 @@ app:
     chave:    ${APP_EVOLUTION_CHAVE:}
     prefixo-instancia: ${APP_EVOLUTION_PREFIXO:loja_}
 
+  # --- Cobrança recorrente (Asaas) ---
+  # Sem a chave, a tela mostra o botão desabilitado e explica o motivo; sem o
+  # token do webhook, o endpoint responde 503 em vez de aceitar qualquer um.
+  #
+  # O token do webhook NUNCA deve ser a chave da API — é a própria
+  # documentação do Asaas que adverte.
+  asaas:
+    base-url:      ${APP_ASAAS_BASE_URL:https://api.asaas.com/v3}
+    chave:         ${APP_ASAAS_CHAVE:}
+    webhook-token: ${APP_ASAAS_WEBHOOK_TOKEN:}
+
   # Segredo do canal servidor-a-servidor por onde os sistemas buscam a
   # credencial da instância. Sem ele, o canal responde 503 — endpoint que
   # entrega credencial não pode ter modo permissivo por omissão.

@@ -2,6 +2,7 @@ package br.com.drlog.portal.repository;
 
 import br.com.drlog.portal.model.Conta;
 import br.com.drlog.portal.model.ContaTenant;
+import br.com.drlog.portal.model.Papel;
 import br.com.drlog.portal.model.Tenant;
 import org.springframework.data.repository.Repository;
 
@@ -21,6 +22,9 @@ public interface ContaTenantRepository extends Repository<ContaTenant, UUID> {
      * exigir findByIdAndTenantId em toda alteração.
      */
     Optional<ContaTenant> findByContaAndTenant(Conta conta, Tenant tenant);
+
+    /** O responsável pela loja — é para ele que a cobrança é emitida. */
+    Optional<ContaTenant> findByTenantAndPapel(Tenant tenant, Papel papel);
 
     ContaTenant save(ContaTenant vinculo);
 }

@@ -1460,3 +1460,111 @@ novo — manualmente.
 **O provisionamento não é automático na contratação.** É um botão na tela de
 administração. Deliberado por ora: falhar no provisionamento não deveria
 impedir a venda, e o erro precisa ser visível para quem vende.
+
+---
+
+## 22. Etapa 3 — cobrança recorrente com Asaas
+
+Renovar deixou de depender da memória de alguém. O gateway cobra, avisa por
+webhook, e o acesso se estende sozinho.
+
+### O que a máquina de estados faz
+
+| Evento | Efeito |
+| :--- | :--- |
+| `PAYMENT_CONFIRMED` / `RECEIVED` | `ativa`, e o acesso soma um ciclo |
+| `PAYMENT_OVERDUE` | `atrasada`, com **5 dias de carência** — ainda libera |
+| `REFUNDED` / `CHARGEBACK_*` | `suspensa` |
+
+**A carência é dada estendendo a data, não criando um estado especial.** Isso
+faz o bloqueio acontecer sozinho quando ela termina, sem depender de nenhuma
+rotina rodar na hora certa — uma peça a menos que pode falhar calada.
+
+Por que 5 dias: uma loja de bairro atrasa o boleto dois dias com frequência, e
+cortar no primeiro dia gera churn e chamado de suporte. Pior: o sistema
+cortado é justamente o que ela usa para faturar e conseguir pagar.
+
+### As três defesas do webhook
+
+O endpoint é público. Se acreditasse no que recebe, qualquer um poderia
+declarar pagamentos que não aconteceram.
+
+1. **`asaas-access-token`**, conferido em tempo constante. Nunca é a chave da
+   API — a própria documentação do Asaas adverte contra isso.
+2. **Idempotência por id de evento**, com `unique (gateway, evento_id)` no
+   banco. A entrega do Asaas é *at least once*: o mesmo evento chega mais de
+   uma vez, por desenho. Um `PAYMENT_RECEIVED` processado duas vezes
+   entregaria dois meses por um pagamento.
+3. **Releitura da cobrança na API antes de mudar estado.**
+
+A terceira é a que realmente sustenta. Com ela, o webhook vira só um aviso de
+"algo mudou, vá conferir" — e o pior que um atacante consegue é fazer o Portal
+reler a verdade.
+
+**Verificado:** um webhook autenticado dizendo `RECEIVED`, com o Asaas
+respondendo `PENDING`, **não alterou nada**.
+
+### Grava primeiro, processa depois
+
+O webhook guarda o evento, responde 2xx e processa fora da requisição.
+
+Não é organização: a fila do Asaas é **sequencial** e para após 15 falhas
+consecutivas. Um processamento lento dentro do handler não atrasaria um
+evento — atrasaria todos, de todos os assinantes.
+
+### Decisões da ativação
+
+**Idempotente.** Ativar duas vezes não cria uma segunda assinatura no Asaas —
+o que geraria dois boletos para a mesma loja.
+
+**O primeiro vencimento é o fim do acesso já pago.** Cobrar hoje por um
+período que a loja já tem seria cobrar duas vezes.
+
+**`billingType: UNDEFINED`** deixa o cliente escolher Pix, boleto ou cartão na
+hora. Fixar um método reduziria a chance de a loja pagar do jeito que lhe é
+possível.
+
+**Busca o cliente pelo documento antes de criar.** O mesmo CNPJ cadastrado
+duas vezes vira dois clientes no Asaas, e o histórico de pagamento da loja
+fica partido entre eles.
+
+**O botão "Renovar" continua existindo.** É a saída quando o cliente paga por
+fora, ou quando o gateway falha e a loja não pode ficar parada.
+
+### O `User-Agent` é obrigatório
+
+Contas do Asaas criadas a partir de 06/11/2024 exigem o cabeçalho em toda
+requisição. Sem ele a chamada é recusada, e a mensagem de erro não indica que
+o problema é esse. Está fixado no cliente.
+
+### Verificação feita
+
+| Cenário | Resultado |
+| :--- | :--- |
+| Ativar cobrança | cliente e assinatura criados no Asaas, primeira cobrança emitida |
+| Ativar de novo | idempotente — uma assinatura só |
+| `User-Agent` | enviado em todas as chamadas |
+| Webhook com token errado / sem cabeçalho | **401** |
+| **Webhook mentindo** (diz `RECEIVED`, Asaas diz `PENDING`) | **nada mudou** |
+| Pagamento real | acesso somou 30 dias |
+| Mesmo evento de novo | **não somou outra vez** |
+| Vencido sem pagar, acesso já expirado | `atrasada` com 5 dias de carência, ainda liberando |
+| Carência terminada | bloqueado sozinho, sem rotina nenhuma |
+| Pagamento em atraso | volta a `ativa`, com ciclo novo |
+
+### O que fica em aberto
+
+**Não há checkout self-service.** O visitante ainda fala no WhatsApp, e você
+cria o assinante pela administração. Ativar a cobrança é um botão. Vender sem
+intervenção é a etapa 5.
+
+**Eventos que falham não são reprocessados sozinhos.** Ficam gravados com o
+erro em `eventos_gateway`, e existe consulta para listá-los — falta a tela e
+o reprocessamento.
+
+**Cancelar no gateway não está exposto.** Suspender aqui não cancela a
+assinatura no Asaas: ele continuaria emitindo cobrança.
+
+**O Asaas se contradiz sobre `SUBSCRIPTION_*`.** A máquina de estados ignora
+esses eventos de propósito e se apoia nos de cobrança, que correspondem a
+dinheiro tendo entrado.

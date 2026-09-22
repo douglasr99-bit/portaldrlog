@@ -45,7 +45,7 @@
       <thead>
         <tr>
           <th>Loja</th><th>Sistema</th><th>Plano</th>
-          <th>Situação</th><th>Acesso até</th><th>WhatsApp</th><th>Ações</th>
+          <th>Situação</th><th>Acesso até</th><th>WhatsApp</th><th>Cobrança</th><th>Ações</th>
         </tr>
       </thead>
       <tbody>
@@ -58,7 +58,7 @@
               <b th:text="${linha.tenant.nome}">Sapataria</b>
               <span class="codigo" th:text="${linha.tenant.codigo}">codigo</span>
             </td>
-            <td colspan="5" class="texto-fraco">Nenhum sistema contratado</td>
+            <td colspan="6" class="texto-fraco">Nenhum sistema contratado</td>
             <td class="acoes">
               <form th:action="@{'/admin/assinantes/' + ${linha.tenant.id} + '/contratar'}"
                     method="post" class="form-contratar">
@@ -111,6 +111,18 @@
                         th:title="${evolutionConfigurada} ? 'Confere na Evolution e recria se necessário' : 'APP_EVOLUTION_CHAVE não configurada no Portal'"
                         th:text="${prov == null} ? 'Provisionar' : (${prov.estado == 'ativo'} ? 'Reprovisionar' : 'Tentar de novo')">Provisionar</button>
               </form>
+            </td>
+            <td>
+              <span th:if="${a.cobrancaAutomatica()}" class="selo selo-ok">automática</span>
+              <form th:action="@{'/admin/assinaturas/' + ${a.id} + '/cobranca'}" method="post"
+                    th:unless="${a.cobrancaAutomatica()}">
+                <button class="botao botao-discreto botao-mini" type="submit"
+                        th:disabled="${not asaasConfigurado}"
+                        th:title="${asaasConfigurado} ? 'Cria a assinatura recorrente no Asaas' : 'APP_ASAAS_CHAVE não configurada no Portal'">Ativar</button>
+              </form>
+              <!-- Renovar continua existindo mesmo com cobrança automática:
+                   é a saída quando o cliente paga por fora, ou quando o
+                   gateway falha e a loja não pode ficar parada. -->
             </td>
             <td class="acoes">
               <form th:action="@{'/admin/assinaturas/' + ${a.id} + '/renovar'}" method="post">

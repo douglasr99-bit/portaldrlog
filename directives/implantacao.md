@@ -327,6 +327,57 @@ isso.
 
 ---
 
+## Passo 8 — ligar a cobrança automática
+
+Opcional e independente: o Portal funciona sem isso, com renovação pela tela.
+
+### No Asaas
+
+1. **Configurações → Integrações → API** — copie a chave. Use a de
+   **sandbox** (`https://api-sandbox.asaas.com/v3`) até confiar no fluxo.
+2. **Configurações → Integrações → Webhooks → Adicionar**:
+   - URL: `https://drlog.com.br/api/gateway/asaas`
+   - Token de autenticação: **gere um valor próprio** — nunca a chave da API,
+     como a documentação do Asaas adverte
+   - Eventos: os de **cobrança** (`PAYMENT_*`)
+   - Versão da API: v3
+
+### No Coolify, no Portal
+
+| Variável | Valor |
+| :--- | :--- |
+| `APP_ASAAS_BASE_URL` | `https://api-sandbox.asaas.com/v3` para testar; `https://api.asaas.com/v3` em produção |
+| `APP_ASAAS_CHAVE` | a chave da API |
+| `APP_ASAAS_WEBHOOK_TOKEN` | o token que você definiu no webhook |
+
+Sem a chave, o botão "Ativar" fica desabilitado e explica o motivo. Sem o
+token, o webhook responde **503** — endpoint que altera assinatura não pode
+aceitar qualquer um por omissão de configuração.
+
+### Antes de ativar para uma loja
+
+O Asaas exige documento. Se o assinante estiver sem CNPJ ou CPF, a tela
+recusa com essa mensagem — preencha antes.
+
+### Conferir
+
+```bash
+# o webhook recusa quem não tem o token?
+curl -sS -o /dev/null -w '%{http_code}\n' -X POST \
+  https://drlog.com.br/api/gateway/asaas -H 'Content-Type: application/json' -d '{}'
+```
+
+Esperado **401**. Se vier 503, falta `APP_ASAAS_WEBHOOK_TOKEN`.
+
+Depois, na administração: **Ativar** na coluna Cobrança. O Asaas cria a
+assinatura com o primeiro vencimento no fim do acesso já pago — não cobra
+por período que a loja já tem.
+
+> O botão **Renovar** continua ali. É a saída quando o cliente paga por fora
+> ou quando o gateway falha, e a loja não pode ficar parada.
+
+---
+
 ## Lições da primeira implantação
 
 ### O pareamento é parte do passo 6, não um detalhe
