@@ -57,6 +57,10 @@ public class SecurityConfig {
                 // A administração da plataforma é outra coisa que ser
                 // assinante: exige a marca explícita na conta.
                 .requestMatchers("/admin/**").hasRole("ADMIN")
+                // Canal servidor-a-servidor: autentica pelo cabeçalho
+                // X-Sistema-Segredo, conferido no próprio controller. Não tem
+                // sessão nem usuário — quem chama é outra aplicação.
+                .requestMatchers("/api/sistemas/**").permitAll()
                 .anyRequest().authenticated()
             )
             .formLogin(login -> login
@@ -76,6 +80,11 @@ public class SecurityConfig {
                 .logoutSuccessUrl("/")
                 .deleteCookies("JSESSIONID")
                 .invalidateHttpSession(true)
+            )
+            .csrf(csrf -> csrf
+                // Sem cookie não há CSRF a proteger: a credencial vai num
+                // cabeçalho que um formulário de outro site não consegue pôr.
+                .ignoringRequestMatchers("/api/sistemas/**")
             )
             .sessionManagement(sessao -> sessao
                 // Troca o identificador de sessão na autenticação. Sem isso,

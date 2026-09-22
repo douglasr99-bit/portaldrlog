@@ -35,16 +35,19 @@ public class AdminService {
     private final ContaTenantRepository vinculos;
     private final AssinaturaRepository assinaturas;
     private final PlanoRepository planos;
+    private final ProvisionamentoRepository provisionamentos;
     private final PasswordEncoder encoder;
 
     public AdminService(ContaRepository contas, TenantRepository tenants,
                         ContaTenantRepository vinculos, AssinaturaRepository assinaturas,
-                        PlanoRepository planos, PasswordEncoder encoder) {
+                        PlanoRepository planos, ProvisionamentoRepository provisionamentos,
+                        PasswordEncoder encoder) {
         this.contas = contas;
         this.tenants = tenants;
         this.vinculos = vinculos;
         this.assinaturas = assinaturas;
         this.planos = planos;
+        this.provisionamentos = provisionamentos;
         this.encoder = encoder;
     }
 
@@ -229,6 +232,20 @@ public class AdminService {
         return tenants.findAllByOrderByNomeAsc().stream()
                 .map(t -> new LinhaAdmin(t, porTenant.getOrDefault(t.getId(), List.of())))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Assinatura assinatura(UUID id) {
+        return assinaturas.findById(id).orElseThrow(() -> new Recusa("Assinatura não encontrada."));
+    }
+
+    /** Provisionamento de cada assinante, indexado pelo id do tenant. */
+    @Transactional(readOnly = true)
+    public Map<UUID, Provisionamento> provisionamentosPorTenant() {
+        Map<UUID, Provisionamento> mapa = new HashMap<>();
+        for (Provisionamento p : provisionamentos.findAllByOrderByCriadoEmDesc())
+            mapa.putIfAbsent(p.getTenant().getId(), p);
+        return mapa;
     }
 
     @Transactional(readOnly = true)

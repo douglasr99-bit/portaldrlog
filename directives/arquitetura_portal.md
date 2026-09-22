@@ -450,7 +450,7 @@ só para isso.
 | 1 | ~~Esqueleto do Portal: Flyway, `contas`, `tenants`, login~~ | ✅ **feito** — ver seção 12 |
 | 2 | JWKS + emissão de token + `/sso` no Styllos | **primeira venda possível** |
 | 3 | Catálogo, planos, Asaas, webhook, máquina de estados | venda sem intervenção |
-| 4 | Instância por tenant + `tenant_config` + achados (a) (b) (c) | **segundo assinante possível** |
+| 4 | ~~Instância por tenant + `tenant_config` + achados (a) (b) (c)~~ | ✅ **feito** — ver seção 21 |
 | 5 | Trial e cadastro self-service | escala |
 
 **A etapa 2 já permite faturar.** Com SSO funcionando e assinatura ativada à mão,
@@ -1317,3 +1317,146 @@ segundo assinante**.
 
 **O expurgo de `tickets_sso` não roda sozinho.** O método existe no
 repositório; falta agendá-lo. A tabela cresce um registro por entrada.
+
+
+---
+
+## 21. Etapa 4 — WhatsApp por assinante
+
+O bloqueio do segundo assinante caiu. Eram três achados registrados na seção
+2, e os três estão fechados.
+
+### (a) A marca saiu de dentro da mensagem
+
+`EvolutionApiService` tinha `*Styllus Sapataria*` escrito no texto, nas
+mensagens de conclusão e de lembrete. Com a segunda loja, os clientes dela
+receberiam mensagem assinada com o nome da primeira — sem nada quebrar, sem
+nenhum log registrar, e descoberto pelo cliente da loja.
+
+O nome agora vem de fora. No modo formulario, de `APP_LOJA_NOME`; no modo
+portal, de `tenant_config`, preenchida a cada entrada pelo token.
+
+Quando o nome falta, a frase perde o trecho em vez de sair quebrada:
+*"Seu serviço (X) está PRONTO"* em vez de *"Seu serviço (X) na ** está
+PRONTO"*.
+
+### (b) Instância e credencial deixaram de ser campos
+
+Eram `@Value` num `@Service` singleton — resolvidos uma vez, no boot. Com um
+container atendendo várias lojas, isso é estado compartilhado entre
+requisições simultâneas, e perder essa disputa significa **enviar a mensagem
+de uma loja pelo WhatsApp de outra, para o cliente de outra**. Dano que chega
+a um terceiro e não tem desfazer.
+
+Viraram parâmetro: um `LojaWhatsApp(tenantId, nome, instancia, apiKey)` que
+desce por todos os métodos. O `ResolvedorDaLoja` é o único lugar que decide de
+onde eles vêm.
+
+Na varredura de lembretes, a loja é resolvida **dentro do laço**, uma por
+tenant. Resolvida fora, mandaria as mensagens de todas as lojas pela instância
+da primeira.
+
+### (c) A chave global saiu dos sistemas vendidos
+
+Antes o Styllus guardava a `AUTHENTICATION_API_KEY`, que controla **todas** as
+instâncias de **todos** os assinantes.
+
+Agora:
+
+```
+  Portal  ──chave global──▶  Evolution     cria a instância, recebe o hash
+     │                                     guarda em provisionamentos
+     │
+     │  GET /api/sistemas/provisionamento/{produto}/{tenant}
+     │      X-Sistema-Segredo: ...
+     ▼
+  Styllus  ──token da instância──▶  Evolution    envia a mensagem
+```
+
+**A diferença é o que acontece quando o roteamento de tenant erra:** com token
+por instância, a Evolution responde 401 e a mensagem não sai. Com a chave
+global, ela sai — pela loja errada.
+
+### Decisões
+
+**O canal é separado do token de acesso.** O token do SSO passa pelo navegador
+do usuário; o que estiver dentro dele é público para quem o tiver em mãos.
+Credencial de instância sai por canal de servidor para servidor, autenticado
+por `X-Sistema-Segredo`, comparado em **tempo constante** — um `equals()` sai
+no primeiro caractere diferente, e essa diferença de tempo permite descobrir o
+segredo caractere a caractere.
+
+**Sem segredo configurado, o canal responde 503**, não 200. Endpoint que
+entrega credencial não pode ter modo permissivo por omissão de configuração.
+
+**A credencial só sai se a assinatura permitir acesso agora.** Sem essa
+conferência, um assinante cancelado continuaria disparando WhatsApp enquanto o
+sistema tivesse a credencial em cache.
+
+**O resultado é guardado em `tenant_config`.** Não é otimização: é o que
+mantém o envio funcionando com o Portal fora do ar.
+
+**O nome da instância é previsível** — `loja_` + código do assinante. Quem
+abrir o painel da Evolution para diagnosticar precisa conseguir dizer de quem
+é cada instância; um identificador aleatório transformaria isso em consulta ao
+banco.
+
+**Provisionar é idempotente** pelo par (assinante, produto). Uma segunda
+instância para a mesma loja significaria um segundo número de WhatsApp — e o
+cliente dela recebendo aviso de um número que não conhece.
+
+### Compatibilidade com o que já está no ar
+
+O modo formulario continua sendo o padrão e continua usando
+`EVOLUTION_API_INSTANCE` e `EVOLUTION_API_KEY` como sempre. A instalação em
+produção segue enviando pela mesma instância, com a mesma chave.
+
+**Uma variável nova é obrigatória lá: `APP_LOJA_NOME`.** O nome estava escrito
+no código e saiu de lá. Sem ela, as mensagens passam a sair sem o nome da
+loja — e a aplicação avisa no log ao subir.
+
+### Verificação feita
+
+Contra uma Evolution simulada que registra instância e credencial de cada
+chamada:
+
+| Cenário | Resultado |
+| :--- | :--- |
+| Duas lojas, modo formulario | cada uma enviou pela sua instância, com a sua chave e o seu nome |
+| Status do WhatsApp | cada loja consultou a própria instância |
+| Provisionar pela tela de administração | instância criada com a chave **global do Portal** |
+| Provisionar duas vezes | idempotente; não cria segunda instância |
+| Entrada pelo Portal | `tenant_config` recebeu instância e token |
+| Envio depois da entrada | usou o **token da instância**, não a chave global |
+| Canal com segredo certo | 200 |
+| Canal com segredo errado / sem cabeçalho | 401 |
+| Canal com assinatura suspensa | 403 — a credencial não sai |
+| Produto ou assinante inexistente | 404 |
+| Chave global no JWKS, no canal ou no banco do Styllus | **0 ocorrências** |
+
+### Dois defeitos do arranjo de teste, que valem registro
+
+**`--ARGS` não faz relaxed binding.** `--APP_LOJA_NOME=x` não preenche
+`app.loja.nome`; variável de ambiente preenche. Em produção isso não aparece,
+porque o Coolify entrega variáveis de ambiente de verdade — mas custou uma
+rodada de diagnóstico, e invalidou uma verificação anterior.
+
+**Por causa disso, a checagem de "o formulário está desativado no modo
+portal", feita na etapa 2, não provava nada:** ela usava uma senha errada, e
+o login teria falhado de qualquer jeito. Refeita com a senha **certa** e com
+variáveis de ambiente: no modo portal o filtro de login nem entra na cadeia e
+a senha correta não autentica; no modo formulario, a mesma senha entra.
+
+### O que continua em aberto
+
+**O QR Code de pareamento ainda é por instância, mas a tela não mudou.** Cada
+assinante precisa parear o próprio número; o fluxo existe (`/api/whatsapp/qrcode`
+já cria a instância se faltar), mas ninguém o guiou pela tela ainda.
+
+**Não há rotação nem revogação da credencial de instância.** Se o token de uma
+instância vazar, o conserto é apagar a instância na Evolution e provisionar de
+novo — manualmente.
+
+**O provisionamento não é automático na contratação.** É um botão na tela de
+administração. Deliberado por ora: falhar no provisionamento não deveria
+impedir a venda, e o erro precisa ser visível para quem vende.

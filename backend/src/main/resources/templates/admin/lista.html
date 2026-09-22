@@ -45,7 +45,7 @@
       <thead>
         <tr>
           <th>Loja</th><th>Sistema</th><th>Plano</th>
-          <th>Situação</th><th>Acesso até</th><th>Ações</th>
+          <th>Situação</th><th>Acesso até</th><th>WhatsApp</th><th>Ações</th>
         </tr>
       </thead>
       <tbody>
@@ -58,7 +58,7 @@
               <b th:text="${linha.tenant.nome}">Sapataria</b>
               <span class="codigo" th:text="${linha.tenant.codigo}">codigo</span>
             </td>
-            <td colspan="4" class="texto-fraco">Nenhum sistema contratado</td>
+            <td colspan="5" class="texto-fraco">Nenhum sistema contratado</td>
             <td class="acoes">
               <form th:action="@{'/admin/assinantes/' + ${linha.tenant.id} + '/contratar'}"
                     method="post" class="form-contratar">
@@ -95,6 +95,19 @@
               <span class="aviso-vence" th:if="${a.acessoAte != null
                     and a.acessoAte.isBefore(T(java.time.Instant).now().plusSeconds(604800))
                     and a.acessoAte.isAfter(T(java.time.Instant).now())}">vence em breve</span>
+            </td>
+            <td th:with="prov=${provisionamentos.get(linha.tenant.id)}">
+              <span th:if="${prov != null and prov.estado == 'ativo'}" class="selo selo-ok">pronta</span>
+              <span th:if="${prov != null and prov.estado == 'falhou'}" class="selo selo-bloqueado"
+                    th:title="${prov.erro}">falhou</span>
+              <span class="codigo" th:if="${prov != null}" th:text="${prov.instancia}">loja_x</span>
+              <form th:action="@{'/admin/assinaturas/' + ${a.id} + '/whatsapp'}" method="post"
+                    th:if="${prov == null or prov.estado != 'ativo'}">
+                <button class="botao botao-discreto botao-mini" type="submit"
+                        th:disabled="${not evolutionConfigurada}"
+                        th:title="${evolutionConfigurada} ? '' : 'APP_EVOLUTION_CHAVE não configurada no Portal'"
+                        th:text="${prov == null} ? 'Provisionar' : 'Tentar de novo'">Provisionar</button>
+              </form>
             </td>
             <td class="acoes">
               <form th:action="@{'/admin/assinaturas/' + ${a.id} + '/renovar'}" method="post">

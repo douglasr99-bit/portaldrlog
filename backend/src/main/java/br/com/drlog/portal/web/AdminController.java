@@ -1,7 +1,10 @@
 package br.com.drlog.portal.web;
 
 import br.com.drlog.portal.model.EstadoAssinatura;
+import br.com.drlog.portal.repository.ProdutoRepository;
+import br.com.drlog.portal.repository.TenantRepository;
 import br.com.drlog.portal.service.AdminService;
+import br.com.drlog.portal.service.ProvisionamentoService;
 import br.com.drlog.portal.service.ContaAutenticada;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
@@ -21,9 +24,16 @@ import java.util.UUID;
 public class AdminController {
 
     private final AdminService admin;
+    private final ProvisionamentoService provisionamento;
+    private final TenantRepository tenants;
+    private final ProdutoRepository produtos;
 
-    public AdminController(AdminService admin) {
+    public AdminController(AdminService admin, ProvisionamentoService provisionamento,
+                           TenantRepository tenants, ProdutoRepository produtos) {
         this.admin = admin;
+        this.provisionamento = provisionamento;
+        this.tenants = tenants;
+        this.produtos = produtos;
     }
 
     @GetMapping
@@ -31,6 +41,8 @@ public class AdminController {
         model.addAttribute("conta", conta);
         model.addAttribute("linhas", admin.listar());
         model.addAttribute("planos", admin.planosDisponiveis());
+        model.addAttribute("provisionamentos", admin.provisionamentosPorTenant());
+        model.addAttribute("evolutionConfigurada", provisionamento.configurado());
         return "admin/lista";
     }
 
@@ -78,6 +90,25 @@ public class AdminController {
             var a = admin.contratar(tenantId, planoId);
             redirect.addFlashAttribute("sucesso",
                     "%s agora assina %s.".formatted(a.getTenant().getNome(), a.getProduto().getNome()));
+        } catch (AdminService.Recusa e) {
+            redirect.addFlashAttribute("erro", e.getMessage());
+        }
+        return "redirect:/admin";
+    }
+
+    @PostMapping("/assinaturas/{id}/whatsapp")
+    public String provisionarWhatsApp(@PathVariable UUID id, RedirectAttributes redirect) {
+        try {
+            var assinatura = admin.assinatura(id);
+            var p = provisionamento.provisionar(assinatura.getTenant(), assinatura.getProduto());
+            if ("ativo".equals(p.getEstado())) {
+                redirect.addFlashAttribute("sucesso",
+                        "Instância \"%s\" pronta para %s.".formatted(p.getInstancia(),
+                                assinatura.getTenant().getNome()));
+            } else {
+                redirect.addFlashAttribute("erro",
+                        "Não foi possível provisionar: %s".formatted(p.getErro()));
+            }
         } catch (AdminService.Recusa e) {
             redirect.addFlashAttribute("erro", e.getMessage());
         }

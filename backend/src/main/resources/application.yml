@@ -58,6 +58,21 @@ spring:
     cache: false
 
 app:
+  # --- Evolution API: só o Portal tem a chave global ---
+  # Cada sistema vendido recebe apenas o token da instância do seu assinante.
+  # Sem esta chave o provisionamento fica indisponível e a tela avisa — em
+  # vez de cair para a chave global espalhada pelos sistemas.
+  evolution:
+    base-url: ${APP_EVOLUTION_BASE_URL:https://api.drlog.com.br}
+    chave:    ${APP_EVOLUTION_CHAVE:}
+    prefixo-instancia: ${APP_EVOLUTION_PREFIXO:loja_}
+
+  # Segredo do canal servidor-a-servidor por onde os sistemas buscam a
+  # credencial da instância. Sem ele, o canal responde 503 — endpoint que
+  # entrega credencial não pode ter modo permissivo por omissão.
+  sistemas:
+    segredo: ${APP_SISTEMAS_SEGREDO:}
+
   vitrine:
     # Como a abertura apresenta as telas do sistema:
     #   carrossel — troca sozinha a cada 6,5s, com pausa e indicadores
