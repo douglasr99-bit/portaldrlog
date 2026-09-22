@@ -66,15 +66,34 @@ public class Empresa {
         return (s == null || s.isBlank()) ? null : s.trim();
     }
 
+    /**
+     * Só os dígitos, com o DDI 55 na frente.
+     *
+     * O 55 é acrescentado quando falta. O link wa.me exige o código do país,
+     * e sem ele não abre conversa nenhuma — falha silenciosa, porque a página
+     * continua bonita e o botão continua clicável. É a mesma normalização que
+     * o Styllus faz com o telefone do cliente, pelo mesmo motivo.
+     *
+     * Não há como adivinhar o DDD: um número com menos de 10 dígitos é
+     * devolvido como está, e o link sai errado de forma visível.
+     */
+    private String whatsappDigitos() {
+        if (vazio(whatsapp)) return null;
+        String d = whatsapp.replaceAll("\\D", "");
+        if (d.length() == 10 || d.length() == 11) d = "55" + d;
+        return d;
+    }
+
     /** Link de conversa, montado a partir do número. */
     public String getWhatsappLink() {
-        return vazio(whatsapp) ? null : "https://wa.me/" + whatsapp.replaceAll("\\D", "");
+        String d = whatsappDigitos();
+        return d == null ? null : "https://wa.me/" + d;
     }
 
     /** O número como se lê: (11) 99999-8888. */
     public String getWhatsappExibicao() {
-        if (vazio(whatsapp)) return null;
-        String d = whatsapp.replaceAll("\\D", "");
+        String d = whatsappDigitos();
+        if (d == null) return null;
         if (d.startsWith("55")) d = d.substring(2);
         if (d.length() == 11) return "(%s) %s-%s".formatted(d.substring(0,2), d.substring(2,7), d.substring(7));
         if (d.length() == 10) return "(%s) %s-%s".formatted(d.substring(0,2), d.substring(2,6), d.substring(6));

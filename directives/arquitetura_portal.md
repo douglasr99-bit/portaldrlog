@@ -1040,3 +1040,40 @@ LTDA` — viraria tentativa de rodar o comando `Social`. Exigir aspas em todo
 valor seria uma armadilha silenciosa num arquivo editado à mão. Verificado
 com valor acentuado, com espaço, com espaço em volta do `=`, com aspas e com
 comentário.
+
+
+---
+
+## 18. Dois defeitos encontrados ao configurar o `.env`
+
+### O link do WhatsApp saía sem o código do país
+
+`APP_EMPRESA_WHATSAPP` era usado como veio: `35984385842` virava
+`wa.me/35984385842`, que não abre conversa nenhuma. Falha silenciosa — a
+página continua correta e o botão continua clicável.
+
+`Empresa` passou a acrescentar o **DDI 55** quando o número tem 10 ou 11
+dígitos e não o traz. É a mesma normalização que o Styllus faz com o telefone
+do cliente, pelo mesmo motivo. Números com menos de 10 dígitos são devolvidos
+como estão: não há como adivinhar o DDD, e o link errado fica visível.
+
+### O `dev.sh` deixava instância órfã servindo conteúdo velho
+
+Subir o script uma segunda vez enquanto a primeira ainda rodava produzia o
+pior estado possível:
+
+1. A nova instância migrava o banco;
+2. depois morria com `BindException: endereço já em uso`;
+3. o `.dev.pid` já tinha sido sobrescrito com o pid da que morreu;
+4. `--parar` matava um processo morto e **a primeira seguia viva**, servindo
+   dados de um banco que não existia mais.
+
+Nada na tela indicava isso. O sintoma que apareceu foi outro: conta que não
+era criada, login que falhava e uma correção de código que "não fazia efeito".
+
+Duas mudanças: o script **recusa iniciar** se a porta já estiver ocupada, com
+instrução do que fazer; e o `--parar` encerra também quem estiver na porta,
+não apenas o pid do arquivo.
+
+O arquivo de pid sozinho nunca foi suficiente — ele descreve a última
+instância iniciada, não a que está atendendo.

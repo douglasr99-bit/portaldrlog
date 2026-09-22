@@ -11,12 +11,33 @@ set -euo pipefail
 RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BANCO=portal_dev
 PORTA_BANCO=55432
+PORTA_APP=8082
+
+# Quem está ocupando a porta da aplicação, se alguém estiver.
+dono_da_porta() {
+  ss -ltnp 2>/dev/null | awk -v p=":$PORTA_APP\$" '$4 ~ p' \
+    | grep -oP 'pid=\K[0-9]+' | head -1
+}
 
 parar() {
-  # O -f do pkill casaria com a própria linha de comando deste script;
-  # por isso o pid é guardado em arquivo.
+  # Pelo arquivo de pid primeiro. O -f do pkill casaria com a própria linha
+  # de comando deste script, então não serve.
   [[ -f "$RAIZ/.dev.pid" ]] && kill "$(cat "$RAIZ/.dev.pid")" 2>/dev/null || true
   rm -f "$RAIZ/.dev.pid"
+
+  # E depois pela porta. Uma instância anterior que continuou viva enquanto
+  # outra sobrescreveu o arquivo de pid ficaria órfã para sempre — foi
+  # exatamente o que aconteceu: a segunda morreu com "endereço já em uso", o
+  # arquivo passou a apontar para um processo morto, e a primeira seguiu
+  # servindo conteúdo velho.
+  local dono
+  dono="$(dono_da_porta)"
+  if [[ -n "$dono" ]]; then
+    echo "Encerrando o processo $dono, que ocupava a porta $PORTA_APP."
+    kill "$dono" 2>/dev/null || true
+    for _ in $(seq 1 20); do [[ -z "$(dono_da_porta)" ]] && break; sleep 0.5; done
+  fi
+
   docker rm -f "$BANCO" >/dev/null 2>&1 || true
   echo "Parado."
 }
@@ -67,6 +88,18 @@ if [[ -z "$JDK" ]]; then
   exit 1
 fi
 echo "JDK 21: $JDK"
+
+# ---- porta livre? -----------------------------------------------------------
+# Sem esta checagem, subir uma segunda vez enquanto a primeira roda faz a nova
+# morrer com "endereço já em uso" — depois de já ter migrado o banco. O
+# resultado é o pior possível: o banco muda, mas quem responde na porta é a
+# instância velha, e nada na tela indica isso.
+if [[ -n "$(dono_da_porta)" ]]; then
+  echo "ERRO: a porta $PORTA_APP já está em uso (processo $(dono_da_porta))." >&2
+  echo "      Provavelmente há um ./scripts/dev.sh rodando. Encerre com:" >&2
+  echo "          ./scripts/dev.sh --parar" >&2
+  exit 1
+fi
 
 # ---- banco ------------------------------------------------------------------
 if ! docker ps --format '{{.Names}}' | grep -qx "$BANCO"; then

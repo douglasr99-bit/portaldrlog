@@ -121,8 +121,8 @@ public class SiteController {
                     "Em produção desde agosto de 2026",
                     "O cliente deixa. Você conserta.", "O sistema avisa.",
                     "Sapataria, lavanderia, conserto de bicicleta, assistência técnica — "
-                  + "todo negócio em que alguém entrega uma coisa, você trabalha nela e devolve. "
-                  + "É para esse trabalho que a Drlog faz software, e não para “empresas” em geral."));
+                  + "personalizamos o software para a realidade do seu negócio. "
+                  + "esse é o trabalho da Drlog."));
         }
 
         // Vagas "em breve". Existem para que o carrossel possa ser visto
