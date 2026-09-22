@@ -101,12 +101,15 @@
               <span th:if="${prov != null and prov.estado == 'falhou'}" class="selo selo-bloqueado"
                     th:title="${prov.erro}">falhou</span>
               <span class="codigo" th:if="${prov != null}" th:text="${prov.instancia}">loja_x</span>
-              <form th:action="@{'/admin/assinaturas/' + ${a.id} + '/whatsapp'}" method="post"
-                    th:if="${prov == null or prov.estado != 'ativo'}">
+              <!-- Disponível mesmo com a instância ativa: se ela tiver sido
+                   apagada por fora, este é o único caminho de recuperação.
+                   Clicar numa instância saudável não faz nada — o serviço
+                   confere a existência antes de recriar. -->
+              <form th:action="@{'/admin/assinaturas/' + ${a.id} + '/whatsapp'}" method="post">
                 <button class="botao botao-discreto botao-mini" type="submit"
                         th:disabled="${not evolutionConfigurada}"
-                        th:title="${evolutionConfigurada} ? '' : 'APP_EVOLUTION_CHAVE não configurada no Portal'"
-                        th:text="${prov == null} ? 'Provisionar' : 'Tentar de novo'">Provisionar</button>
+                        th:title="${evolutionConfigurada} ? 'Confere na Evolution e recria se necessário' : 'APP_EVOLUTION_CHAVE não configurada no Portal'"
+                        th:text="${prov == null} ? 'Provisionar' : (${prov.estado == 'ativo'} ? 'Reprovisionar' : 'Tentar de novo')">Provisionar</button>
               </form>
             </td>
             <td class="acoes">

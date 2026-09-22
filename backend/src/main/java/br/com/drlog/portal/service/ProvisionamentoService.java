@@ -83,7 +83,18 @@ public class ProvisionamentoService {
                         .estado("pendente")
                         .build());
 
-        if ("ativo".equals(p.getEstado()) && p.getToken() != null) return p;
+        // Idempotente — mas só se a instância ainda existir de verdade.
+        //
+        // Apagar uma instância direto na Evolution é operação realista (uma
+        // limpeza, um engano). Sem esta conferência, o Portal continuaria
+        // entregando o nome e o token de um fantasma, o sistema vendido
+        // tentaria enviar por ela e receberia 404 — e não haveria caminho de
+        // recuperação, porque o guard devolvia o registro velho para sempre.
+        if ("ativo".equals(p.getEstado()) && p.getToken() != null) {
+            if (instanciaExiste(p)) return p;
+            log.warn("Instância {} não existe mais na Evolution. Recriando com o mesmo nome.",
+                     p.getInstancia());
+        }
 
         try {
             @SuppressWarnings("unchecked")
@@ -126,6 +137,32 @@ public class ProvisionamentoService {
         }
 
         return provisionamentos.save(p);
+    }
+
+    /**
+     * A instância ainda está lá?
+     *
+     * Consulta com o token da própria instância: se ela tiver sido apagada,
+     * a Evolution responde 404 e o token não vale mais para nada.
+     *
+     * Na dúvida — timeout, Evolution fora do ar — devolve true. Recriar uma
+     * instância que existe seria pior que não recriar: derrubaria o
+     * pareamento de uma loja que está funcionando.
+     */
+    private boolean instanciaExiste(Provisionamento p) {
+        try {
+            http.get()
+                .uri("/instance/connectionState/{nome}", p.getInstancia())
+                .header("apikey", p.getToken())
+                .retrieve()
+                .body(Map.class);
+            return true;
+        } catch (RestClientResponseException e) {
+            return e.getStatusCode().value() != 404;
+        } catch (Exception e) {
+            log.warn("Não foi possível conferir a instância {}: {}", p.getInstancia(), e.toString());
+            return true;
+        }
     }
 
     /**
