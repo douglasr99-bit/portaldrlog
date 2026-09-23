@@ -1273,7 +1273,7 @@ de propósito (tenant fixo em vez do principal) e o teste foi rodado de novo:
 clientes da loja 1. Com o filtro restaurado, 400 de 400 limpas. O detector
 funciona.
 
-### Dois defeitos encontrados no caminho
+### Três defeitos encontrados no caminho
 
 **O JWKS nascia vazio.** A chave era criada na primeira emissão, e o JWKS
 consultado antes disso devolvia `{"keys":[]}` — que o sistema vendido guarda
@@ -1684,3 +1684,204 @@ conversão, e ele passa em silêncio.
 instância. As travas limitam o volume, mas não a qualidade.
 
 **Cancelar continua não exposto** — nem para o cliente nem na administração.
+
+---
+
+## 24. Etapa 6 — cartão no teste
+
+O teste passa a exigir cartão, e quem não quer teste assina direto pagando
+como puder.
+
+### Por que o cartão
+
+O cartão aqui **não é forma de recebimento** — é o preço da palavra "grátis".
+Ele resolve de uma vez os três buracos que a etapa 5 deixou abertos:
+
+| Buraco da etapa 5 | Como o cartão fecha |
+| :--- | :--- |
+| Instância de WhatsApp abandonada por teste que vence | nada é provisionado antes de o Asaas confirmar |
+| Fim de teste em silêncio, sem aviso nem conversão | a cobrança sai sozinha na data, no cartão já validado |
+| E-mail inventado criando conta e instância | cartão é verificação de identidade |
+
+### O corte certo não é cartão-contra-Pix
+
+A primeira versão deste desenho mandava quem queria Pix falar no WhatsApp.
+Estava errado: a restrição não tem nada a ver com forma de pagamento, e sim
+com o teste. Quem paga no primeiro dia não precisa de verificação nenhuma —
+ninguém cria conta falsa e paga R$ 99.
+
+O corte é **com teste / sem teste**, e os dois cabem no self-service:
+
+| | Testar 14 dias grátis | Assinar agora |
+| :--- | :--- | :--- |
+| Pagamento | cartão, debitado no fim do teste | Pix, boleto ou cartão |
+| Por que a restrição | é o preço de "grátis" | nenhuma — já pagou |
+| Documento | não é pedido | exigido (o Asaas exige) |
+| Acesso | quando o cartão é aceito | Pix e cartão na hora; boleto quando compensa |
+
+Assim quem só paga no Pix continua assinando sozinho — apenas sem os dias
+grátis. O WhatsApp volta a ser o que deve ser: a porta de quem prefere
+conversar antes, não a fila obrigatória de quem não tem cartão.
+
+### Por que 14 dias
+
+Trial longo combina com produto de implantação demorada. O Styllus é usado
+todo dia, no balcão: prova-se rápido ou não se prova.
+
+Sete dias, porém, é curto para a função que mais diferencia o sistema — o
+lembrete de retirada, que dispara **a cada 7 dias**. Com teste de uma semana o
+dono o vê disparar uma vez, no último dia, e não chega a ver aquilo
+funcionando como ciclo. **Catorze é o menor prazo em que ele dispara duas
+vezes.**
+
+Trinta seria pior que quatorze, não melhor: é tempo de a pessoa esquecer que
+assinou, e aí a cobrança chega como susto — a falha mais cara num mercado que
+anda por indicação. E o *Resumo do mês*, que realmente precisa de um mês, não
+justifica estender: ele é o que o **primeiro mês pago** entrega.
+
+### O caminho
+
+```
+  vitrine → "Começar agora"
+        │
+        ├── Testar 14 dias ──→ conta criada, SEM acesso e SEM WhatsApp
+        │                             ↓
+        │                    checkout no domínio do Asaas
+        │                             ↓
+        │                    cartão validado, cobrança agendada
+        │                             ↓
+        │              volta do navegador ──┐
+        │              webhook CHECKOUT_PAID┤→ relê no Asaas → libera
+        │                                    ↓
+        │                         trial + WhatsApp + sessão
+        │                                    ↓
+        │                    dia 14: débito automático → ativa
+        │
+        └── Assinar agora ──→ conta criada, SEM acesso e SEM WhatsApp
+                                      ↓
+                              fatura Pix/boleto/cartão
+                                      ↓
+                              pagamento → webhook → ativa + WhatsApp
+```
+
+### O que sustenta a segurança
+
+**Nada é liberado pela volta do navegador.** A `successUrl` passa pela máquina
+do cliente: quem editasse a URL entraria sem cartão. O que decide é o status
+relido em `GET /checkouts/{id}` — a mesma desconfiança que o webhook já
+aplicava às cobranças.
+
+**Nada é provisionado antes da confirmação.** A conta nasce em
+`aguardando_pagamento`, estado que não libera acesso e não consome instância.
+É de propósito que quem abandona o checkout fique exatamente aí: é esse o
+custo que o cartão veio evitar.
+
+**Uma só porta liga o acesso.** `LiberacaoService` é o único lugar que muda
+estado e provisiona, e as três entradas passam por ele — volta do navegador,
+webhook do checkout e webhook de pagamento. Se cada uma liberasse por conta
+própria, bastaria uma esquecer de provisionar para nascer cliente pagante sem
+WhatsApp.
+
+**A liberação é idempotente.** A confirmação chega duas vezes com frequência —
+o navegador e o webhook — e entrega repetida é parte do desenho do Asaas.
+Liberar duas vezes não cria duas instâncias nem encurta o acesso de quem já
+tinha mais.
+
+### Cancelar deixou de ser opcional
+
+Cobrança automática sem botão de cancelar é armadilha, não assinatura. O botão
+fica no painel, e:
+
+- **cancela primeiro no Asaas, depois aqui.** Se a ordem fosse inversa e a
+  chamada ao gateway falhasse, o cliente apareceria como cancelado e
+  continuaria sendo debitado todo mês — o pior desfecho possível deste fluxo.
+  Falhando lá, a recusa é dita na tela e nada é marcado;
+- **não corta o acesso.** Quem pagou até o dia 30 tem direito ao dia 29.
+  Cancelar interrompe a *renovação*: `renovacao_cancelada` é um campo à parte
+  do estado, e o acesso termina sozinho quando `acesso_ate` passa, sem depender
+  de rotina nenhuma rodar na hora certa.
+
+### A data e o valor ficam à vista
+
+Na escolha do cadastro, antes de qualquer campo: *"Nada é cobrado hoje: a
+primeira cobrança de R$ 99,00 sai em 07/10/2026, e só se você não cancelar
+antes."* E de novo no painel, durante todo o teste.
+
+Custa quase nada e é o que separa assinatura de pegadinha — além de ser mais
+barato que um chargeback.
+
+### Três defeitos encontrados no caminho
+
+**O `.formatted()` pegava só o último pedaço.** Em
+`"...%d dias..." + "...".formatted(dias)`, o método se aplica apenas ao
+literal à sua esquerda imediata — a mensagem chegou na tela com `%d` cru. O
+compilador não reclama, porque a expressão é válida. Corrigido com parênteses,
+e o resto do código varrido atrás do mesmo padrão.
+
+**Sem Asaas configurado, o cadastro prendia o e-mail da pessoa.** Até a etapa
+5 o Portal funcionava sem gateway nenhum — o teste era criado direto no banco.
+Agora os *dois* caminhos terminam no Asaas, e sem chave os dois falham. Só que
+a conta já tinha sido criada quando a falha aparecia: a pessoa via um erro,
+tentava de novo e ouvia que o e-mail já estava cadastrado.
+
+Corrigido com a verificação antes de qualquer escrita, e a tela passa a dizer
+que o cadastro está indisponível, oferecendo o WhatsApp, em vez de mostrar um
+formulário que quebraria no fim. O runbook foi corrigido junto: a cobrança
+deixou de ser opcional para o autocadastro.
+
+**O ambiente local estava falando com a Evolution de produção.** A variável
+chama-se `APP_EVOLUTION_BASE_URL`, e o `.env` de teste trazia
+`APP_EVOLUTION_URL`. Sem correspondência, valeu o padrão do
+`application.yml` — `https://api.drlog.com.br`. Falhou fechado, com 401 por
+causa da chave de teste, mas com a chave certa teria criado instância em
+produção a partir de um teste local. O sintoma é fácil de ler errado: parece
+falha de provisionamento, não erro de configuração.
+
+### Verificação feita
+
+| Cenário | Resultado |
+| :--- | :--- |
+| Escolha na tela | as duas opções, com data e valor antes dos campos |
+| Modo AGORA sem documento | recusado |
+| Campo de documento | aparece só no modo AGORA; botão muda de rótulo |
+| Cadastro do teste | vai direto ao checkout do Asaas |
+| Antes do cartão | `aguardando_pagamento`, sem acesso, **zero provisionamentos** |
+| **Volta pela URL de sucesso sem ter pago** | **recusado — nada liberado** |
+| Cobrança criada no cartão | `PENDING` para o dia 14, nada debitado hoje |
+| Volta do checkout pago | `trial`, acesso até o dia 14, WhatsApp ativo |
+| Fechou a aba: `CHECKOUT_PAID` | mesmo desfecho, sem o navegador |
+| Volta e webhook juntos | um provisionamento só, acesso inalterado |
+| Webhook repetido | reconhecido como repetido |
+| Débito do dia 14 | `ativa`, +1 ciclo |
+| Cancelar | assinatura some do Asaas, acesso mantido até a data |
+| Depois de cancelar | botão some, aviso diz até quando funciona |
+| Modo AGORA | assinatura `UNDEFINED` (Pix/boleto/cartão), sem acesso até pagar |
+| **Webhook mentindo que pagou** | **nada mudou — nem acesso, nem WhatsApp** |
+| Trava por IP | 4º cadastro recusado e registrado |
+| Portal sem chave do Asaas | formulário some, tela oferece o WhatsApp |
+| POST forçado sem chave do Asaas | **nenhuma conta criada** |
+| Erros de console | nenhum |
+
+> Não exercitado: a variante da mensagem de indisponibilidade para um Portal
+> **sem** `APP_EMPRESA_WHATSAPP` — o `dev.sh` tem um padrão para essa variável
+> e ela não fica vazia em desenvolvimento.
+
+### O que fica em aberto
+
+**Conta abandonada prende o e-mail.** Quem para no checkout e tenta se
+cadastrar de novo com o mesmo endereço é recusado. É recuperável — a mensagem
+manda entrar pelo login, e o painel oferece "Informar o cartão" —, mas a
+pessoa pode não ligar uma coisa à outra.
+
+**Não há faxina de `aguardando_pagamento`.** Não custam instância, mas ocupam
+o e-mail e o código da loja para sempre.
+
+**Cartão recusado na renovação não tem tratamento próprio.** Cai na carência
+de `OVERDUE`, que foi pensada para boleto atrasado. Cartão sem limite é outro
+problema e pede outra conversa com o cliente.
+
+**Não há aviso antes do débito.** A data está na tela do painel, mas quem não
+entra não a vê. Um aviso dois dias antes é barato e evita o susto.
+
+**Confirmação de e-mail continua sem existir.** Importa menos agora — o cartão
+verifica —, mas um endereço errado ainda impede o cliente de recuperar a senha.

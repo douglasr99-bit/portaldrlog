@@ -74,10 +74,37 @@
             <span th:text="${#temporals.format(a.acessoAte, 'dd/MM/yyyy')}">30/09/2026</span>
           </p>
 
-          <!-- Em teste: quanto falta, e o caminho para continuar.
-               Aparece antes do botão de abrir porque é a decisão que a pessoa
-               precisa tomar, e ela some assim que a assinatura é criada. -->
-          <div class="aviso-teste" th:if="${a.estado.name() == 'trial' and not a.cobrancaAutomatica()}">
+          <!-- Parou no meio do checkout. É o estado mais caro da tela: a
+               pessoa já quis, já digitou tudo e travou no cartão. Retomar
+               precisa ser um clique, não um recomeço. -->
+          <div class="aviso-teste" th:if="${a.estado.name() == 'aguardando_pagamento'}">
+            <b>Falta terminar</b>
+            <p class="cartao-nota-fraca">
+              Sua conta está criada, mas o sistema só abre depois que o
+              pagamento for confirmado.
+            </p>
+            <a class="botao botao-primario botao-bloco" th:if="${a.checkoutLink != null}"
+               th:href="${a.checkoutLink}">Informar o cartão</a>
+          </div>
+
+          <!-- Em teste com cartão já validado: o que importa agora é a pessoa
+               saber a data e o valor, e ter como parar. Esconder isso é o que
+               transforma assinatura em pegadinha. -->
+          <div class="aviso-teste"
+               th:if="${a.estado.name() == 'trial' and a.cobrancaAutomatica() and not a.renovacaoCancelada}">
+            <b>Teste em andamento</b>
+            <p class="cartao-nota-fraca">
+              Primeira cobrança de <b th:text="${a.plano.precoFormatado()}">R$ 99,00</b>
+              em <b th:if="${a.acessoAte != null}"
+                    th:text="${#temporals.format(a.acessoAte, 'dd/MM/yyyy')}">30/09/2026</b>,
+              no cartão cadastrado. Cancele antes e nada é cobrado.
+            </p>
+          </div>
+
+          <!-- Teste criado pela administração, sem cartão: continua podendo
+               virar assinatura pelo caminho antigo. -->
+          <div class="aviso-teste"
+               th:if="${a.estado.name() == 'trial' and not a.cobrancaAutomatica()}">
             <b>Teste em andamento</b>
             <span th:if="${a.acessoAte != null}"
                   th:text="'até ' + ${#temporals.format(a.acessoAte, 'dd/MM')}">até 30/09</span>
@@ -89,7 +116,19 @@
             </form>
             <p class="cartao-nota-fraca">
               Cobrança mensal pelo Asaas, com Pix, boleto ou cartão.
-              Cancelar é parar de pagar.
+            </p>
+          </div>
+
+          <!-- Já cancelou: o que a pessoa precisa saber é até quando ainda
+               tem o sistema, não que acabou. -->
+          <div class="aviso-teste aviso-encerrando" th:if="${a.renovacaoCancelada}">
+            <b>Renovação cancelada</b>
+            <p class="cartao-nota-fraca">
+              Você não será cobrado de novo.
+              <span th:if="${a.acessoAte != null}">
+                O sistema continua funcionando até
+                <b th:text="${#temporals.format(a.acessoAte, 'dd/MM/yyyy')}">30/09/2026</b>.
+              </span>
             </p>
           </div>
 
@@ -106,9 +145,20 @@
               Abrir sistema
             </button>
           </form>
-          <p class="cartao-nota" th:unless="${a.permiteAcesso()}">
+          <p class="cartao-nota"
+             th:unless="${a.permiteAcesso() or a.estado.name() == 'aguardando_pagamento'}">
             Acesso bloqueado. Regularize a assinatura para voltar a usar.
           </p>
+
+          <!-- Cancelar fica por último e discreto, mas fica.
+               Cobrança automática sem botão de cancelar é armadilha: quem
+               deixou o cartão tem de conseguir parar pelo mesmo caminho por
+               onde começou, sem depender de alguém responder no WhatsApp. -->
+          <form th:action="@{'/painel/cancelar/' + ${a.id}}" method="post"
+                th:if="${a.cobrancaAutomatica() and not a.renovacaoCancelada}"
+                onsubmit="return confirm('Cancelar a renovação? Você não será cobrado de novo e continua com o sistema até o fim do período já pago.');">
+            <button class="elo-cancelar" type="submit">Cancelar assinatura</button>
+          </form>
         </article>
       </div>
     </div>

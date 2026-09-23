@@ -22,13 +22,57 @@
     <div class="assinar-form">
       <h1 class="produto-nome">Começar agora</h1>
       <p class="produto-resumo">
-        <b th:text="${diasDeTeste}">7</b> dias para usar tudo, sem pagar nada e
-        sem cartão. Se não servir, é só não continuar.
+        Duas formas de entrar. As duas dão o sistema inteiro, com o WhatsApp
+        da sua loja ligado.
       </p>
 
       <div class="alerta alerta-erro" th:if="${erro}" role="alert" th:text="${erro}"></div>
 
-      <form th:action="@{'/assinar/' + ${produto.codigo}}" method="post" class="formulario">
+      <!-- Sem gateway configurado não há cadastro possível: os dois caminhos
+           terminam no Asaas. Melhor dizer isso e oferecer o WhatsApp do que
+           deixar a pessoa preencher tudo para falhar no fim. -->
+      <div class="alerta alerta-erro" th:unless="${cadastroDisponivel}" role="alert">
+        O cadastro pelo site está temporariamente indisponível.
+        <span th:if="${empresa.whatsapp}">
+          <a th:href="${empresa.whatsappLink}">Fale com a gente no WhatsApp</a>
+          que criamos o seu acesso na hora.
+        </span>
+        <span th:unless="${empresa.whatsapp}">Tente novamente em instantes.</span>
+      </div>
+
+      <form th:if="${cadastroDisponivel}"
+            th:action="@{'/assinar/' + ${produto.codigo}}" method="post" class="formulario"
+            id="formulario">
+
+        <!-- A escolha vem antes de tudo porque ela muda o que o formulário
+             pede. Enterrada no fim, a pessoa preencheria tudo para só então
+             descobrir que precisava do cartão. -->
+        <div class="escolha" th:if="${testeDisponivel}">
+          <label class="escolha-opcao">
+            <input type="radio" name="modo" value="TESTE"
+                   th:checked="${modo == null or modo == 'TESTE'}">
+            <span class="escolha-corpo">
+              <b class="escolha-titulo">Testar <span th:text="${diasDeTeste}">14</span> dias grátis</b>
+              <span class="escolha-nota">
+                Cartão de crédito. Nada é cobrado hoje: a primeira cobrança de
+                <b th:text="${planos[0].precoFormatado()}">R$ 99,00</b> sai em
+                <b th:text="${primeiraCobranca}">06/10/2026</b>, e só se você não cancelar antes.
+              </span>
+            </span>
+          </label>
+
+          <label class="escolha-opcao">
+            <input type="radio" name="modo" value="AGORA" th:checked="${modo == 'AGORA'}">
+            <span class="escolha-corpo">
+              <b class="escolha-titulo">Assinar agora</b>
+              <span class="escolha-nota">
+                Pix, boleto ou cartão, sem os dias grátis. No Pix o sistema abre
+                na hora; no boleto, quando o banco compensar.
+              </span>
+            </span>
+          </label>
+        </div>
+        <input type="hidden" name="modo" value="AGORA" th:unless="${testeDisponivel}">
 
         <div class="campo">
           <label class="rotulo" for="nomeLoja">Nome da sua loja</label>
@@ -69,15 +113,56 @@
           <p class="ajuda">Mínimo de 8 caracteres.</p>
         </div>
 
-        <button class="botao botao-primario botao-bloco" type="submit">
-          Começar o teste
+        <!-- Só quem vai pagar agora precisa do documento. Exigir CNPJ de quem
+             só queria experimentar afasta antes de a pessoa ver o sistema. -->
+        <div class="campo" id="campo-documento">
+          <label class="rotulo" for="documento">CNPJ ou CPF da loja</label>
+          <input class="entrada" id="documento" name="documento"
+                 inputmode="numeric" th:value="${documento}">
+          <p class="ajuda">Exigido pelo Asaas para emitir a cobrança.</p>
+        </div>
+
+        <button class="botao botao-primario botao-bloco" type="submit" id="botao-enviar">
+          Continuar
         </button>
 
-        <p class="ajuda ajuda-centro">
-          Não pedimos cartão. Ao final dos <b th:text="${diasDeTeste}">7</b> dias,
-          você decide se continua.
+        <p class="ajuda ajuda-centro" id="nota-envio">
+          Você vai para a página do Asaas para informar o cartão.
+          Cancelar é um botão no seu painel.
         </p>
       </form>
+
+      <!-- Sem JavaScript a tela continua correta: os dois blocos aparecem e o
+           servidor recusa o que faltar. O script só evita que a pessoa veja um
+           campo que não é para ela. -->
+      <script>
+        (function () {
+          var form = document.getElementById('formulario');
+          var campo = document.getElementById('campo-documento');
+          var doc = document.getElementById('documento');
+          var botao = document.getElementById('botao-enviar');
+          var nota = document.getElementById('nota-envio');
+          if (!form || !campo) return;
+
+          function marcado() {
+            var m = form.querySelector('input[name="modo"]:checked');
+            return m ? m.value : 'AGORA';
+          }
+          function ajustar() {
+            var agora = marcado() === 'AGORA';
+            campo.hidden = !agora;
+            doc.required = agora;
+            botao.textContent = agora ? 'Assinar e pagar' : 'Continuar para o cartão';
+            nota.textContent = agora
+              ? 'Você vai para a página de pagamento do Asaas. Cancelar é um botão no seu painel.'
+              : 'Você vai para a página do Asaas para informar o cartão. Cancelar é um botão no seu painel.';
+          }
+          form.addEventListener('change', function (e) {
+            if (e.target.name === 'modo') ajustar();
+          });
+          ajustar();
+        })();
+      </script>
     </div>
 
     <!-- O que a pessoa leva, ao lado do formulário: é o momento em que ela
@@ -89,7 +174,7 @@
 
       <div class="assinar-preco" th:if="${not #lists.isEmpty(planos)}">
         <span class="preco" th:text="${planos[0].precoFormatado()}">R$ 99,00</span>
-        <span class="preco-ciclo">por mês, depois do teste</span>
+        <span class="preco-ciclo">por mês, por loja</span>
       </div>
 
       <ul class="lista-simples">
@@ -97,7 +182,8 @@
             As mensagens saem do número que seus clientes já conhecem.</li>
         <li><b>Balcão e celular ao mesmo tempo.</b> Os dados ficam no servidor.</li>
         <li><b>Sem limite</b> de serviços, clientes ou usuários.</li>
-        <li><b>Cancelar é parar de pagar.</b> Nada de multa nem fidelidade.</li>
+        <li><b>Cancelar é um botão no painel.</b> Sem multa, sem fidelidade e
+            sem precisar falar com ninguém.</li>
       </ul>
     </aside>
 

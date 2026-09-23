@@ -77,6 +77,30 @@ public class Assinatura {
     @Column(name = "gateway_assinatura_id")
     private String gatewayAssinaturaId;
 
+    /**
+     * O checkout hospedado do Asaas, quando o teste foi iniciado com cartão.
+     *
+     * Guardado para reler o status no gateway em vez de acreditar no que vem
+     * pela volta do navegador — a mesma desconfiança que o webhook já aplica.
+     */
+    @Column(name = "gateway_checkout_id")
+    private String gatewayCheckoutId;
+
+    /** Para o painel oferecer "terminar o cadastro" a quem fechou a aba. */
+    @Column(name = "checkout_link")
+    private String checkoutLink;
+
+    /**
+     * O cliente pediu para não renovar.
+     *
+     * Separado do estado de propósito: quem pagou até o dia 30 tem direito ao
+     * dia 29. Cancelar interrompe a renovação, e o acesso termina sozinho
+     * quando `acessoAte` passa.
+     */
+    @Column(name = "renovacao_cancelada", nullable = false)
+    @Builder.Default
+    private boolean renovacaoCancelada = false;
+
     /** Se a cobrança já é automática. */
     public boolean cobrancaAutomatica() {
         return gatewayAssinaturaId != null && !gatewayAssinaturaId.isBlank();

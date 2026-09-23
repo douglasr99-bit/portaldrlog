@@ -349,6 +349,13 @@ Opcional e independente: o Portal funciona sem isso, com renovação pela tela.
 | `APP_ASAAS_BASE_URL` | `https://api-sandbox.asaas.com/v3` para testar; `https://api.asaas.com/v3` em produção |
 | `APP_ASAAS_CHAVE` | a chave da API |
 | `APP_ASAAS_WEBHOOK_TOKEN` | o token que você definiu no webhook |
+| `APP_PORTAL_URL` | `https://drlog.com.br` — monta o endereço de volta do checkout |
+| `APP_CADASTRO_DIAS_DE_TESTE` | `14` |
+
+`APP_PORTAL_URL` errado não quebra o cadastro de forma visível: o cliente
+informa o cartão normalmente e é devolvido para um endereço que não existe. O
+webhook ainda libera o acesso, então o defeito aparece só como uma tela de
+erro no pior momento.
 
 Sem a chave, o botão "Ativar" fica desabilitado e explica o motivo. Sem o
 token, o webhook responde **503** — endpoint que altera assinatura não pode
@@ -358,6 +365,17 @@ aceitar qualquer um por omissão de configuração.
 
 O Asaas exige documento. Se o assinante estiver sem CNPJ ou CPF, a tela
 recusa com essa mensagem — preencha antes.
+
+### Conferir o Checkout na conta
+
+O teste com cartão usa o **Checkout do Asaas** (`POST /v3/checkouts`), que é
+hospedado no domínio deles — o dado do cartão nunca passa pelo Portal. Antes
+de abrir a vitrine ao público, confira em sandbox que a sua conta responde a
+esse endpoint: se ela não tiver o recurso liberado, a opção de teste falha na
+hora de redirecionar, e é a opção que a maioria vai escolher.
+
+Sem `APP_ASAAS_CHAVE`, a vitrine esconde o teste e oferece só "Assinar agora" —
+oferecer um teste que quebraria na tela seguinte é pior que não oferecer.
 
 ### Conferir
 

@@ -52,19 +52,24 @@ public class CobrancaService {
     private final EventoGatewayRepository eventos;
     private final ContaTenantRepository vinculos;
     private final AsaasClient asaas;
+    private final LiberacaoService liberacao;
     private final ObjectMapper json = new ObjectMapper();
     private final String tokenDoWebhook;
+    private final int diasDeTeste;
 
     public CobrancaService(AssinaturaRepository assinaturas, CobrancaRepository cobrancas,
                            EventoGatewayRepository eventos, ContaTenantRepository vinculos,
-                           AsaasClient asaas,
-                           @Value("${app.asaas.webhook-token:}") String tokenDoWebhook) {
+                           AsaasClient asaas, LiberacaoService liberacao,
+                           @Value("${app.asaas.webhook-token:}") String tokenDoWebhook,
+                           @Value("${app.cadastro.dias-de-teste:14}") int diasDeTeste) {
         this.assinaturas = assinaturas;
         this.cobrancas = cobrancas;
         this.eventos = eventos;
         this.vinculos = vinculos;
         this.asaas = asaas;
+        this.liberacao = liberacao;
         this.tokenDoWebhook = tokenDoWebhook;
+        this.diasDeTeste = diasDeTeste;
     }
 
     public boolean configurado()   { return asaas.configurado(); }
@@ -190,6 +195,15 @@ public class CobrancaService {
         try {
             JsonNode raiz = json.readTree(evento.getPayload());
             String tipo = texto(raiz, "event");
+
+            // O checkout do teste tem eventos próprios, e eles não trazem
+            // cobrança nenhuma — o cartão foi apenas validado, a primeira
+            // cobrança só sai no fim do teste.
+            if (tipo != null && tipo.startsWith("CHECKOUT_")) {
+                concluir(evento, aplicarCheckout(tipo, raiz.get("checkout")));
+                return;
+            }
+
             JsonNode pagamento = raiz.get("payment");
 
             if (pagamento == null || pagamento.isNull()) {
@@ -239,9 +253,10 @@ public class CobrancaService {
             case "CONFIRMED", "RECEIVED", "RECEIVED_IN_CASH" -> {
                 Instant base = (a.getAcessoAte() != null && a.getAcessoAte().isAfter(Instant.now()))
                         ? a.getAcessoAte() : Instant.now();
-                a.setAcessoAte(somarCiclo(base, a.getPlano().getCiclo()));
-                a.setEstado(EstadoAssinatura.ativa);
-                a.setCanceladaEm(null);
+                // Passa pela liberação, e não direto no estado, porque este é
+                // também o momento em que um cliente que pagou na hora — sem
+                // teste — recebe o acesso e o WhatsApp pela primeira vez.
+                liberacao.liberar(a, EstadoAssinatura.ativa, somarCiclo(base, a.getPlano().getCiclo()));
                 log.info("Pagamento confirmado para {} — acesso até {}",
                          a.getTenant().getNome(), a.getAcessoAte());
             }
@@ -328,6 +343,179 @@ public class CobrancaService {
     /** A fila do que chegou e ainda não foi tratado. */
     @Transactional(readOnly = true)
     public List<EventoGateway> pendentes() { return eventos.findByProcessadoEmIsNullOrderByRecebidoEmAsc(); }
+
+
+    // ------------------------------------------------------------------
+    // Teste com cartão
+    // ------------------------------------------------------------------
+
+    /**
+     * Abre o checkout do teste e devolve o link para onde mandar o cliente.
+     *
+     * O cartão é digitado no domínio do Asaas, nunca aqui. E a primeira
+     * cobrança fica agendada para o fim do teste: o Asaas valida o cartão
+     * agora e só debita naquela data.
+     */
+    @Transactional
+    public String iniciarTesteComCartao(Assinatura a) {
+        if (!asaas.configurado())
+            throw new AdminService.Recusa(
+                "A cobrança por cartão não está configurada no Portal (APP_ASAAS_CHAVE).");
+
+        LocalDate primeiraCobranca = LocalDate.now(FUSO).plusDays(diasDeTeste);
+
+        Map<String, Object> checkout = asaas.abrirCheckoutDeTeste(
+                a.getPlano().getPrecoCentavos(),
+                a.getPlano().getCiclo().name(),
+                primeiraCobranca.format(DateTimeFormatter.ISO_LOCAL_DATE) + " 12:00:00",
+                a.getProduto().getNome(),
+                "%s — %d dias grátis, primeira cobrança em %s".formatted(
+                        a.getPlano().getNome(), diasDeTeste,
+                        primeiraCobranca.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))),
+                a.getId().toString());
+
+        String id   = checkout == null ? null : (String) checkout.get("id");
+        String link = checkout == null ? null : (String) checkout.get("link");
+        if (link == null)
+            throw new AdminService.Recusa("O Asaas não devolveu o endereço do checkout.");
+
+        a.setGateway(GATEWAY);
+        a.setGatewayCheckoutId(id);
+        a.setCheckoutLink(link);
+        assinaturas.save(a);
+
+        log.info("Checkout de teste aberto para {}: {} (primeira cobrança em {})",
+                 a.getTenant().getNome(), id, primeiraCobranca);
+        return link;
+    }
+
+    /**
+     * Confere o checkout no Asaas e libera o teste se o cartão foi aceito.
+     *
+     * A volta do navegador passa pela máquina do cliente e por isso não prova
+     * nada: quem editasse a URL entraria sem cartão. O que decide é o status
+     * lido no gateway.
+     *
+     * Chamado tanto pela volta da tela quanto pelo webhook, e seguro nas duas
+     * — a liberação é idempotente.
+     */
+    @Transactional
+    public boolean confirmarCheckout(UUID assinaturaId) {
+        Assinatura a = assinaturas.findById(assinaturaId)
+                .orElseThrow(() -> new AdminService.Recusa("Assinatura não encontrada."));
+
+        if (a.getEstado() != EstadoAssinatura.aguardando_pagamento) return true;
+        if (a.getGatewayCheckoutId() == null) return false;
+
+        Map<String, Object> checkout = asaas.lerCheckout(a.getGatewayCheckoutId());
+        if (checkout == null || !"PAID".equals(String.valueOf(checkout.get("status")))) return false;
+
+        liberarTeste(a, checkout);
+        return true;
+    }
+
+    /**
+     * Amarra a assinatura criada pelo checkout e liga o acesso.
+     *
+     * Descobrir o id da assinatura do lado do Asaas é o passo que não pode
+     * faltar: sem ele, os eventos de pagamento seguintes chegariam sem
+     * corresponder a nada aqui, e a renovação nunca estenderia o acesso — o
+     * cliente seria cobrado e perderia o sistema no mesmo dia.
+     */
+    private void liberarTeste(Assinatura a, Map<String, Object> checkout) {
+        String clienteId = (String) checkout.get("customer");
+        if (clienteId != null) {
+            a.setGatewayClienteId(clienteId);
+            try {
+                asaas.assinaturasDoCliente(clienteId).stream()
+                     .map(m -> (String) m.get("id"))
+                     .filter(java.util.Objects::nonNull)
+                     .findFirst()
+                     .ifPresent(a::setGatewayAssinaturaId);
+            } catch (Exception e) {
+                log.warn("Teste de {} liberado, mas não consegui amarrar a assinatura no Asaas: {}",
+                         a.getTenant().getNome(), e.toString());
+            }
+        }
+
+        // O fim do teste é a data em que o cartão será debitado. Ler do
+        // checkout em vez de recalcular evita que as duas datas discordem e o
+        // cliente seja cobrado um dia antes de perder o acesso, ou depois.
+        Instant fimDoTeste = dataDaPrimeiraCobranca(checkout)
+                .orElse(Instant.now().plus(Duration.ofDays(diasDeTeste)));
+
+        liberacao.liberar(a, EstadoAssinatura.trial, fimDoTeste);
+        assinaturas.save(a);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Optional<Instant> dataDaPrimeiraCobranca(Map<String, Object> checkout) {
+        Object bloco = checkout.get("subscription");
+        if (!(bloco instanceof Map<?, ?> m)) return Optional.empty();
+        LocalDate d = data(((Map<String, Object>) m).get("nextDueDate"));
+        return Optional.ofNullable(d).map(x -> x.atStartOfDay(FUSO).toInstant());
+    }
+
+    /** O mesmo desfecho, quando quem avisa é o webhook e não o navegador. */
+    private String aplicarCheckout(String tipo, JsonNode checkout) {
+        String checkoutId = texto(checkout, "id");
+        if (checkoutId == null) return "evento de checkout sem identificador — ignorado";
+
+        Assinatura a = assinaturas.findByGatewayCheckoutId(checkoutId).orElse(null);
+        if (a == null) return "checkout " + checkoutId + " não corresponde a nenhuma assinatura aqui";
+
+        if (!"CHECKOUT_PAID".equals(tipo)) return "checkout " + tipo.toLowerCase() + " — sem acesso liberado";
+
+        confirmarCheckout(a.getId());
+        return null;
+    }
+
+    // ------------------------------------------------------------------
+    // Cancelar
+    // ------------------------------------------------------------------
+
+    /**
+     * O cliente pede para não renovar.
+     *
+     * Interrompe a cobrança no gateway e mantém o acesso até o dia já pago —
+     * quem pagou até o dia 30 tem direito ao dia 29. O acesso termina sozinho
+     * quando a data passa, sem depender de nenhuma rotina rodar na hora certa.
+     *
+     * O cancelamento no Asaas vem primeiro de propósito: marcar cancelado
+     * aqui e falhar lá continuaria debitando o cartão do cliente todo mês,
+     * que é o pior desfecho possível deste fluxo.
+     */
+    @Transactional
+    public Assinatura cancelarRenovacao(UUID assinaturaId) {
+        Assinatura a = assinaturas.findById(assinaturaId)
+                .orElseThrow(() -> new AdminService.Recusa("Assinatura não encontrada."));
+
+        if (a.isRenovacaoCancelada()) return a;
+
+        if (a.cobrancaAutomatica()) {
+            try {
+                asaas.cancelarAssinatura(a.getGatewayAssinaturaId());
+            } catch (Exception e) {
+                log.error("Falha ao cancelar a assinatura {} no Asaas: {}",
+                          a.getGatewayAssinaturaId(), e.toString());
+                throw new AdminService.Recusa(
+                    "Não consegui cancelar a cobrança no gateway agora. "
+                  + "Não marquei como cancelada para não deixar você sendo cobrado sem saber. "
+                  + "Tente de novo em instantes ou fale com a gente no WhatsApp.");
+            }
+        }
+
+        a.setRenovacaoCancelada(true);
+        a.setCanceladaEm(Instant.now());
+
+        // Quem nunca chegou a ter acesso não precisa esperar data nenhuma.
+        if (a.getEstado() == EstadoAssinatura.aguardando_pagamento)
+            a.setEstado(EstadoAssinatura.cancelada);
+
+        log.info("Renovação cancelada por {} — acesso mantido até {}",
+                 a.getTenant().getNome(), a.getAcessoAte());
+        return assinaturas.save(a);
+    }
 
     private static Instant somarCiclo(Instant base, Ciclo ciclo) {
         return ciclo == Ciclo.anual ? base.plus(Duration.ofDays(365)) : base.plus(Duration.ofDays(30));

@@ -8,7 +8,16 @@ package br.com.drlog.portal.model;
  */
 public enum EstadoAssinatura {
 
-    /** Em teste, sem cobrança ainda. */
+    /**
+     * Cadastrou-se e ainda não pagou nem deixou cartão.
+     *
+     * Não libera acesso e não provisiona WhatsApp. É aqui que fica quem
+     * abandonou o checkout no meio — e é justamente esse o custo que exigir
+     * cartão veio evitar.
+     */
+    aguardando_pagamento(false),
+
+    /** Em teste, com cartão já validado e a primeira cobrança agendada. */
     trial(true),
 
     /** Pagamento em dia. */

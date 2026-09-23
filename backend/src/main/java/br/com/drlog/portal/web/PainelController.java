@@ -40,11 +40,7 @@ public class PainelController {
                           @org.springframework.security.core.annotation.AuthenticationPrincipal ContaAutenticada autenticada,
                           org.springframework.web.servlet.mvc.support.RedirectAttributes redirect) {
         try {
-            var assinatura = assinaturas.findById(id)
-                    .orElseThrow(() -> new br.com.drlog.portal.service.AdminService.Recusa("Assinatura não encontrada."));
-            var conta = contas.findById(autenticada.getId()).orElseThrow();
-            vinculos.findByContaAndTenant(conta, assinatura.getTenant())
-                    .orElseThrow(() -> new br.com.drlog.portal.service.AdminService.Recusa("Assinatura não encontrada."));
+            minhaAssinatura(id, autenticada);
 
             if (documento == null || documento.replaceAll("\\D", "").length() < 11)
                 throw new br.com.drlog.portal.service.AdminService.Recusa(
@@ -60,6 +56,57 @@ public class PainelController {
             redirect.addFlashAttribute("erro", "Não foi possível criar a cobrança agora. Tente de novo em instantes.");
         }
         return "redirect:/painel";
+    }
+
+    /**
+     * O cliente cancela sozinho.
+     *
+     * Existe porque cobrança automática sem botão de cancelar é armadilha, não
+     * assinatura: quem deixou o cartão precisa conseguir parar pelo mesmo
+     * caminho por onde começou, sem depender de alguém responder no WhatsApp.
+     *
+     * O acesso não é cortado aqui — quem pagou até o dia 30 tem direito ao dia
+     * 29. Cancelar interrompe a renovação, e a data faz o resto sozinha.
+     */
+    @org.springframework.web.bind.annotation.PostMapping("/painel/cancelar/{id}")
+    public String cancelar(@org.springframework.web.bind.annotation.PathVariable java.util.UUID id,
+                           @AuthenticationPrincipal ContaAutenticada autenticada,
+                           org.springframework.web.servlet.mvc.support.RedirectAttributes redirect) {
+        try {
+            minhaAssinatura(id, autenticada);
+            var cancelada = cobranca.cancelarRenovacao(id);
+            redirect.addFlashAttribute("boasVindas", cancelada.getAcessoAte() == null
+                    ? "Cadastro cancelado. Você não será cobrado."
+                    : "Renovação cancelada. Você não será cobrado de novo, e o sistema "
+                    + "continua funcionando até " + emDia(cancelada.getAcessoAte()) + ".");
+        } catch (br.com.drlog.portal.service.AdminService.Recusa e) {
+            redirect.addFlashAttribute("erro", e.getMessage());
+        } catch (Exception e) {
+            redirect.addFlashAttribute("erro",
+                    "Não foi possível cancelar agora. Tente de novo em instantes.");
+        }
+        return "redirect:/painel";
+    }
+
+    /**
+     * A assinatura, se ela for mesmo de quem está pedindo.
+     *
+     * Sem esta conferência, quem descobrisse o id de uma assinatura alheia
+     * cancelaria a assinatura de outra loja — ou mandaria cobrança para ela.
+     */
+    private br.com.drlog.portal.model.Assinatura minhaAssinatura(
+            java.util.UUID id, ContaAutenticada autenticada) {
+        var assinatura = assinaturas.findById(id)
+                .orElseThrow(() -> new br.com.drlog.portal.service.AdminService.Recusa("Assinatura não encontrada."));
+        var conta = contas.findById(autenticada.getId()).orElseThrow();
+        vinculos.findByContaAndTenant(conta, assinatura.getTenant())
+                .orElseThrow(() -> new br.com.drlog.portal.service.AdminService.Recusa("Assinatura não encontrada."));
+        return assinatura;
+    }
+
+    private static String emDia(java.time.Instant i) {
+        return java.time.LocalDate.ofInstant(i, java.time.ZoneId.of("America/Sao_Paulo"))
+                .format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
     }
 
     @GetMapping("/painel")

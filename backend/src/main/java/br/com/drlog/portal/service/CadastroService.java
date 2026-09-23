@@ -18,14 +18,15 @@ import java.util.concurrent.ConcurrentHashMap;
  * ============================================================================
  * CADASTRO PELA VITRINE
  *
- * O visitante assina sozinho: cria a conta, ganha um período de teste com
- * tudo ligado, e entra direto.
+ * O visitante assina sozinho, por um de dois caminhos: testar grátis
+ * deixando um cartão, ou assinar na hora e pagar como puder.
  *
- * Cadastro aberto com provisionamento automático de WhatsApp é, sem travas,
- * um caminho para esgotar a memória do servidor — cada conta criada consome
- * uma instância na Evolution. As travas deste serviço existem por isso, e
- * toda recusa é registrada: uma trava apertada que rejeita cliente de verdade
- * é pior que o abuso que ela evita.
+ * Aqui a conta apenas nasce — sem acesso e sem WhatsApp. Quem liga as duas
+ * coisas é a LiberacaoService, depois que o Asaas confirma o cartão ou o
+ * pagamento. Essa ordem é o ponto inteiro do desenho: provisionar antes da
+ * confirmação devolveria o buraco que o cartão veio fechar, porque cada
+ * instância na Evolution custa memória real e quem abandona o checkout
+ * deixaria a conta dela para trás.
  * ============================================================================
  */
 @Service
@@ -39,7 +40,6 @@ public class CadastroService {
     private final AssinaturaRepository assinaturas;
     private final PlanoRepository planos;
     private final RegistroDeRecusas registroDeRecusas;
-    private final ProvisionamentoService provisionamento;
     private final AdminService adminService;
     private final PasswordEncoder encoder;
 
@@ -59,9 +59,9 @@ public class CadastroService {
     public CadastroService(ContaRepository contas, TenantRepository tenants,
                            ContaTenantRepository vinculos, AssinaturaRepository assinaturas,
                            PlanoRepository planos, RegistroDeRecusas registroDeRecusas,
-                           ProvisionamentoService provisionamento, AdminService adminService,
+                           AdminService adminService,
                            PasswordEncoder encoder,
-                           @Value("${app.cadastro.dias-de-teste:7}") int diasDeTeste,
+                           @Value("${app.cadastro.dias-de-teste:14}") int diasDeTeste,
                            @Value("${app.cadastro.por-ip-por-hora:3}") int porIpPorHora,
                            @Value("${app.cadastro.teto-de-testes:25}") int tetoDeTestes) {
         this.contas = contas;
@@ -70,7 +70,6 @@ public class CadastroService {
         this.assinaturas = assinaturas;
         this.planos = planos;
         this.registroDeRecusas = registroDeRecusas;
-        this.provisionamento = provisionamento;
         this.adminService = adminService;
         this.encoder = encoder;
         this.diasDeTeste = diasDeTeste;
@@ -83,9 +82,20 @@ public class CadastroService {
     /** O que o cadastro devolve: a conta criada e o assinante. */
     public record Resultado(Conta conta, Tenant tenant, Assinatura assinatura) {}
 
+    /**
+     * Os dois caminhos da vitrine.
+     *
+     * A diferença entre eles não é forma de pagamento — é o teste. O cartão só
+     * é exigido em TESTE porque é o que torna possível prometer dias grátis
+     * sem abrir a porta para conta inventada; quem escolhe AGORA já está
+     * pagando, e aí Pix e boleto voltam a valer.
+     */
+    public enum Modo { TESTE, AGORA }
+
     @Transactional
     public Resultado cadastrar(String nomeLoja, UUID planoId, String nomeResponsavel,
-                               String email, String senha, String ip) {
+                               String email, String senha, Modo modo, String documento,
+                               String ip) {
 
         if (vazio(nomeLoja))        throw new AdminService.Recusa("Informe o nome da loja.");
         if (vazio(nomeResponsavel)) throw new AdminService.Recusa("Informe o seu nome.");
@@ -93,6 +103,12 @@ public class CadastroService {
         if (senha == null || senha.length() < 8)
             throw new AdminService.Recusa("A senha precisa ter pelo menos 8 caracteres.");
         if (planoId == null)        throw new AdminService.Recusa("Escolha um plano.");
+        if (modo == null)           throw new AdminService.Recusa("Escolha como quer começar.");
+
+        // Só quem vai pagar agora precisa do documento. Exigir CNPJ de quem só
+        // queria experimentar afasta antes de a pessoa ver o sistema.
+        if (modo == Modo.AGORA && (documento == null || documento.replaceAll("\\D", "").length() < 11))
+            throw new AdminService.Recusa("Informe um CNPJ ou CPF válido — o Asaas exige para cobrar.");
 
         // A mensagem é a mesma de e-mail repetido de propósito: dizer "esta
         // conta já existe" a quem não a possui revela quem é cliente.
@@ -112,6 +128,7 @@ public class CadastroService {
         Tenant tenant = tenants.save(Tenant.builder()
                 .codigo(adminService.codigoDisponivelPara(nomeLoja))
                 .nome(nomeLoja.trim())
+                .documento(documento == null || documento.isBlank() ? null : documento.trim())
                 .build());
 
         Conta conta = contas.save(Conta.builder()
@@ -124,28 +141,18 @@ public class CadastroService {
         vinculos.save(ContaTenant.builder()
                 .conta(conta).tenant(tenant).papel(Papel.dono).build());
 
+        // Nasce sem acesso e sem data. O acesso é ligado pela LiberacaoService
+        // quando o Asaas confirmar o cartão ou o pagamento — nunca antes.
         Assinatura assinatura = assinaturas.save(Assinatura.builder()
                 .tenant(tenant)
                 .produto(plano.getProduto())
                 .plano(plano)
-                .estado(EstadoAssinatura.trial)
-                .acessoAte(Instant.now().plus(Duration.ofDays(diasDeTeste)))
+                .estado(EstadoAssinatura.aguardando_pagamento)
                 .origem("autocadastro")
                 .build());
 
-        // O WhatsApp é o motivo pelo qual a loja compra; um teste sem ele
-        // testaria outra coisa. Falhar aqui não impede o cadastro: o acesso
-        // já está liberado, e a administração mostra o provisionamento
-        // pendente para ser refeito.
-        try {
-            provisionamento.provisionar(tenant, plano.getProduto());
-        } catch (Exception e) {
-            log.warn("Cadastro de {} criado, mas o WhatsApp não foi provisionado: {}",
-                     tenant.getNome(), e.toString());
-        }
-
-        log.info("Novo assinante pela vitrine: {} ({}), teste até {}",
-                 tenant.getNome(), tenant.getCodigo(), assinatura.getAcessoAte());
+        log.info("Nova conta pela vitrine: {} ({}), modo {} — aguardando o Asaas",
+                 tenant.getNome(), tenant.getCodigo(), modo);
         return new Resultado(conta, tenant, assinatura);
     }
 
@@ -185,6 +192,10 @@ public class CadastroService {
      * quem já é cliente pagante — o oposto do que a plataforma deve proteger.
      *
      * Barrar quem chega é ruim; derrubar quem paga é pior.
+     *
+     * Conta apenas quem está em teste de verdade. Quem parou no checkout não
+     * entra na conta porque não consome instância nenhuma — de modo que o teto
+     * agora mede memória comprometida, e não curiosidade.
      */
     private void travarPorCapacidade(String ip, String email) {
         long emTeste = assinaturas.countByEstado(EstadoAssinatura.trial);

@@ -753,3 +753,68 @@ a { color: inherit; }
      que está levando antes de começar a digitar. */
   .assinar-resumo { order: -1; }
 }
+
+/* ----------------------------------------------------------------------------
+   A escolha entre testar e assinar
+
+   Dois blocos com peso igual. Destacar o teste como "recomendado" empurraria
+   para o cartão quem já estava disposto a pagar no Pix — e é justamente esse
+   cliente que não se quer perder.
+   ---------------------------------------------------------------------------- */
+.escolha { margin-bottom: 28px; }
+
+.escolha-opcao {
+  display: flex;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--fio);
+  border-radius: 3px;
+  cursor: pointer;
+  background: transparent;
+  transition: border-color .15s, background .15s;
+}
+.escolha-opcao + .escolha-opcao { border-top: none; }
+.escolha-opcao:hover { background: var(--papel-2); }
+
+.escolha-opcao input {
+  appearance: none;
+  flex: 0 0 auto;
+  width: 14px; height: 14px;
+  margin-top: 3px;
+  border: 1px solid var(--tinta-3);
+  border-radius: 50%;
+  /* content-box para que os 3px de recheio virem o miolo do marcador, e não
+     sejam descontados de uma altura de 14px que ficaria negativa. */
+  box-sizing: content-box;
+  padding: 3px;
+  background-clip: content-box;
+  cursor: pointer;
+}
+.escolha-opcao input:checked {
+  border-color: var(--acento);
+  background-color: var(--acento);
+}
+.escolha-opcao input:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+
+.escolha-opcao:has(input:checked) {
+  border-color: var(--tinta);
+  background: var(--papel-2);
+}
+.escolha-opcao:has(input:checked) + .escolha-opcao { border-top: none; }
+
+.escolha-corpo { display: block; }
+.escolha-titulo {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.escolha-nota {
+  display: block;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--tinta-3);
+}
+.escolha-nota b { color: var(--tinta-2); font-weight: 600; }
+
+#campo-documento[hidden] { display: none; }

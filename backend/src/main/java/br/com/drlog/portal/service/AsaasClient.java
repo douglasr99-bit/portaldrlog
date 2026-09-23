@@ -25,11 +25,13 @@ public class AsaasClient {
 
     private final RestClient http;
     private final String chave;
+    private final String portalUrl;
 
     public AsaasClient(@Value("${app.asaas.base-url:https://api.asaas.com/v3}") String baseUrl,
                        @Value("${app.asaas.chave:}") String chave,
                        @Value("${app.portal.url:https://drlog.com.br}") String portalUrl) {
         this.chave = chave;
+        this.portalUrl = portalUrl.replaceAll("/+$", "");
         this.http = RestClient.builder()
                 .baseUrl(baseUrl.replaceAll("/+$", ""))
                 // Obrigatório em contas criadas a partir de 06/11/2024. Sem
@@ -138,6 +140,115 @@ public class AsaasClient {
         return http.get().uri("/payments/{id}", cobrancaId)
                 .header("access_token", chave)
                 .retrieve().body(Map.class);
+    }
+
+
+    // ------------------------------------------------------------------
+    // Checkout hospedado — o caminho do teste com cartão
+    // ------------------------------------------------------------------
+
+    /**
+     * Abre um checkout do Asaas para o teste grátis.
+     *
+     * O cliente é levado para uma página no domínio do Asaas e digita o cartão
+     * lá. O dado do cartão nunca passa por este servidor — e essa é a razão de
+     * usar o checkout hospedado em vez da tokenização transparente, que
+     * traria um peso de conformidade que uma operação pequena não deve
+     * carregar.
+     *
+     * `nextDueDate` no futuro é o que torna o teste realmente grátis: o Asaas
+     * valida o cartão agora e só cobra naquela data. Se a data fosse hoje, a
+     * cobrança sairia na hora — e o "14 dias grátis" viraria mentira.
+     *
+     * Só CREDIT_CARD: o checkout aceita Pix também, mas Pix não pode ser
+     * debitado sozinho no fim do teste, que é justamente o que se quer aqui.
+     * Quem prefere Pix assina pelo outro caminho e paga na hora.
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> abrirCheckoutDeTeste(int valorCentavos, String ciclo,
+                                                    String primeiraCobranca, String nomeDoItem,
+                                                    String descricao, String referencia) {
+        Map<String, Object> assinatura = new LinkedHashMap<>();
+        assinatura.put("cycle", "anual".equalsIgnoreCase(ciclo) ? "YEARLY" : "MONTHLY");
+        assinatura.put("nextDueDate", primeiraCobranca);
+
+        Map<String, Object> item = new LinkedHashMap<>();
+        // O Asaas corta o nome em 30 caracteres; cortar aqui evita que ele
+        // chegue truncado no meio de uma palavra na tela do cliente.
+        item.put("name", encurtar(nomeDoItem, 30));
+        item.put("description", encurtar(descricao, 150));
+        item.put("quantity", 1);
+        item.put("value", valorCentavos / 100.0);
+
+        Map<String, Object> retorno = new LinkedHashMap<>();
+        retorno.put("successUrl", portalUrl + "/assinar/retorno/" + referencia);
+        retorno.put("cancelUrl",  portalUrl + "/assinar/retorno/" + referencia);
+        retorno.put("expiredUrl", portalUrl + "/assinar/retorno/" + referencia);
+
+        Map<String, Object> corpo = new LinkedHashMap<>();
+        corpo.put("billingTypes", java.util.List.of("CREDIT_CARD"));
+        corpo.put("chargeTypes", java.util.List.of("RECURRENT"));
+        corpo.put("minutesToExpire", 60);
+        corpo.put("callback", retorno);
+        corpo.put("items", java.util.List.of(item));
+        corpo.put("subscription", assinatura);
+        corpo.put("externalReference", referencia);
+
+        return http.post().uri("/checkouts")
+                .header("access_token", chave)
+                .body(corpo).retrieve().body(Map.class);
+    }
+
+    /**
+     * Relê o checkout no Asaas.
+     *
+     * A volta do navegador passa pela máquina do cliente, e por isso não vale
+     * como prova de que o cartão foi aceito. O que decide é o status lido
+     * aqui — mesma regra que já vale para o webhook.
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> lerCheckout(String checkoutId) {
+        return http.get().uri("/checkouts/{id}", checkoutId)
+                .header("access_token", chave)
+                .retrieve().body(Map.class);
+    }
+
+    /**
+     * As assinaturas de um cliente.
+     *
+     * O checkout cria a assinatura do lado do Asaas, e o id dela não vem de
+     * volta de forma garantida. Sem descobrir esse id, os eventos de pagamento
+     * seguintes chegariam sem corresponder a nenhuma assinatura daqui — e a
+     * renovação nunca estenderia o acesso.
+     */
+    @SuppressWarnings("unchecked")
+    public java.util.List<Map<String, Object>> assinaturasDoCliente(String clienteId) {
+        Map<String, Object> r = http.get()
+                .uri(u -> u.path("/subscriptions").queryParam("customer", clienteId).build())
+                .header("access_token", chave)
+                .retrieve().body(Map.class);
+        Object dados = r == null ? null : r.get("data");
+        return dados instanceof java.util.List<?> lista
+                ? (java.util.List<Map<String, Object>>) lista
+                : java.util.List.of();
+    }
+
+    /**
+     * Encerra a assinatura no gateway.
+     *
+     * É o que faz o cancelamento valer de verdade. Marcar cancelado só aqui
+     * dentro e esquecer o Asaas continuaria debitando o cartão do cliente
+     * todo mês — o pior defeito possível neste fluxo.
+     */
+    public void cancelarAssinatura(String assinaturaId) {
+        http.delete().uri("/subscriptions/{id}", assinaturaId)
+                .header("access_token", chave)
+                .retrieve().toBodilessEntity();
+    }
+
+    private static String encurtar(String s, int limite) {
+        if (s == null) return null;
+        return s.length() <= limite ? s : s.substring(0, limite).trim();
     }
 
     private static String apenasDigitos(String s) {
