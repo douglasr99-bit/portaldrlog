@@ -361,6 +361,15 @@ Sem a chave, o botão "Ativar" fica desabilitado e explica o motivo. Sem o
 token, o webhook responde **503** — endpoint que altera assinatura não pode
 aceitar qualquer um por omissão de configuração.
 
+> ⚠️ **A chave do Asaas começa com `$`** (`$aact_...`), e o Coolify entende o
+> `$` como início de uma referência a outra variável — expandindo-a para
+> **vazio**. Marque a opção que trata o valor como literal (*Is Literal* /
+> desligar a interpolação) ao cadastrar `APP_ASAAS_CHAVE`.
+>
+> O sintoma engana: a aplicação sobe sem erro nenhum, o log não reclama, e a
+> vitrine apenas informa que o cadastro está indisponível — exatamente como se
+> a variável não tivesse sido cadastrada. Vale para produção e para sandbox.
+
 ### Antes de ativar para uma loja
 
 O Asaas exige documento. Se o assinante estiver sem CNPJ ou CPF, a tela
