@@ -339,8 +339,23 @@ Opcional e independente: o Portal funciona sem isso, com renovação pela tela.
    - URL: `https://drlog.com.br/api/gateway/asaas`
    - Token de autenticação: **gere um valor próprio** — nunca a chave da API,
      como a documentação do Asaas adverte
-   - Eventos: os de **cobrança** (`PAYMENT_*`)
+   - Eventos, exatamente estes sete: `PAYMENT_CONFIRMED`,
+     `PAYMENT_RECEIVED`, `PAYMENT_OVERDUE`, `PAYMENT_REFUNDED`,
+     `PAYMENT_CHARGEBACK_REQUESTED`, `PAYMENT_CHARGEBACK_DISPUTE` e
+     **`CHECKOUT_PAID`**
+   - Tipo de envio: **Sequencial**
    - Versão da API: v3
+
+   > **Não esqueça o `CHECKOUT_PAID`.** É por ele que o teste com cartão é
+   > liberado para quem fecha a aba antes de voltar do Asaas. Só com os
+   > `PAYMENT_*`, esse cliente aprova o cartão e fica preso em "aguardando
+   > pagamento" — sem erro aparecer em lugar nenhum, nem na tela dele nem no
+   > seu log.
+   >
+   > Não existe `PAYMENT_RECEIVED_IN_CASH`, só o `_UNDONE`: marcar recebimento
+   > em dinheiro dispara o `PAYMENT_RECEIVED` comum. É assim que se simula
+   > pagamento de Pix ou boleto em sandbox, com
+   > `POST /v3/payments/{id}/receiveInCash`.
 
 ### No Coolify, no Portal
 
@@ -374,6 +389,48 @@ aceitar qualquer um por omissão de configuração.
 
 O Asaas exige documento. Se o assinante estiver sem CNPJ ou CPF, a tela
 recusa com essa mensagem — preencha antes.
+
+### Virar de sandbox para produção
+
+Nada é compartilhado entre os ambientes — nem conta, nem chave, nem
+configuração. A ordem abaixo evita uma janela em que a vitrine oferece um
+teste que não funciona:
+
+1. **Na conta de produção**, gerar a chave e **criar o webhook do zero**, com
+   os mesmos sete eventos e o mesmo token. Webhook de sandbox não migra.
+2. **Conferir que o Checkout está habilitado na conta de produção.** Recursos
+   ligados no sandbox não valem lá — e é o caminho que a maioria escolhe.
+3. **Só então** trocar `APP_ASAAS_BASE_URL` e `APP_ASAAS_CHAVE` no Coolify,
+   com a opção de valor literal marcada, e redeploy.
+
+> Cancelar uma assinatura no Asaas **também apaga a cobrança pendente** dela.
+> Ninguém recebe boleto de assinatura cancelada.
+
+### Limpar assinantes de teste
+
+Não existe remoção de assinante pela administração — só por SQL. Enquanto for
+assim, e com o cadastro aberto ao público, todo teste e todo checkout
+abandonado deixa conta e tenant para trás.
+
+No database `portal`, com os códigos **explícitos** — nunca `LIKE`, que
+alcançaria a loja real por acidente — e sempre em transação:
+
+```sql
+begin;
+delete from assinaturas where tenant_id in (select id from tenants where codigo in ('...'));
+delete from tenants where codigo in ('...');
+delete from contas c where c.admin = false
+  and not exists (select 1 from conta_tenant ct where ct.conta_id = c.id);
+-- confira as contagens; depois commit; ou rollback;
+```
+
+`cobrancas`, `provisionamentos` e `conta_tenant` saem em cascata; `assinaturas`
+não, por isso vai primeiro. E o `admin = false` da última linha não é detalhe:
+sem ele a conta administrativa — que não tem loja vinculada — seria apagada
+junto, levando o acesso à administração.
+
+**Depois do SQL, apague as instâncias na Evolution Manager.** É lá que a
+memória volta: o banco custa quase nada, cada instância custa MBs reais.
 
 ### Conferir o Checkout na conta
 
