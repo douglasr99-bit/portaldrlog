@@ -1837,6 +1837,54 @@ causa da chave de teste, mas com a chave certa teria criado instância em
 produção a partir de um teste local. O sintoma é fácil de ler errado: parece
 falha de provisionamento, não erro de configuração.
 
+### O que a primeira subida real ensinou
+
+Quatro coisas que eu havia suposto sobre a API do Asaas e que o ambiente real
+desmentiu. As quatro passaram despercebidas em desenvolvimento porque o
+**simulador tinha sido escrito a partir das mesmas suposições** — ele
+concordava com o código em vez de confrontá-lo, que é o pior defeito que um
+simulador pode ter.
+
+**Não existe GET para checkouts.** Só `POST /v3/checkouts`. A releitura que
+sustentava a confirmação batia num endpoint inexistente e devolvia 404. Hoje o
+simulador responde 404 nessa rota de propósito.
+
+**`externalReference` não é herdado.** O id da assinatura é gravado no
+checkout, mas a assinatura que nasce dele volta com o campo nulo. Não serve
+para amarrar as duas pontas.
+
+**O elo é `checkoutSession`.** Tanto a assinatura quanto a cobrança criadas
+pelo checkout carregam esse campo, e ele aceita filtro:
+`GET /v3/subscriptions?checkoutSession={id}`. É por aí que a confirmação
+funciona — e é prova melhor que a releitura do checkout seria, porque a
+assinatura **só existe se o cartão foi aprovado**.
+
+**`nextDueDate` da assinatura já aponta para o ciclo seguinte.** Assim que a
+primeira cobrança é gerada, o campo pula um mês. Quem o usasse como fim do
+teste daria trinta dias grátis de brinde e mostraria na tela uma data
+diferente da do débito. O fim do teste vem do **vencimento da primeira
+cobrança**.
+
+E um defeito meu, que tornou os três primeiros muito mais caros do que
+precisavam: **a exceção era engolida sem registro**. O `catch` da volta do
+checkout trocava qualquer falha pela mesma frase genérica na tela e não
+deixava rastro no log — o diagnóstico teve de ser feito por fora, chamando a
+API do Asaas à mão. Um `catch` que não registra o erro não protege o usuário,
+só esconde a causa.
+
+### Duas correções de tela que vieram junto
+
+**A data do débito vem da cobrança, não do fim do acesso.** O acesso termina
+no fim do dia em que o cartão é debitado — terminar às 00:00 cortaria o
+sistema de manhã enquanto a cobrança ainda seria processada à tarde. Mas
+exibir essa data como "primeira cobrança em" erra por um dia, e data errada
+numa tela de cobrança faz desconfiar da cobrança inteira.
+
+**"Pagar a fatura" não aparece durante o teste com cartão.** A primeira
+cobrança já existe, pendente, desde o momento do cadastro — e o link para
+pagá-la convidaria o cliente a pagar antes do fim dos dias grátis que
+acabáramos de prometer.
+
 ### Verificação feita
 
 | Cenário | Resultado |

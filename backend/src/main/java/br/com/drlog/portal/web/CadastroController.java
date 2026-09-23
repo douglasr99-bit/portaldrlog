@@ -42,6 +42,9 @@ import java.util.UUID;
 @Controller
 public class CadastroController {
 
+    private static final org.slf4j.Logger log =
+            org.slf4j.LoggerFactory.getLogger(CadastroController.class);
+
     private final CadastroService cadastro;
     private final ProdutoRepository produtos;
     private final PlanoRepository planos;
@@ -161,6 +164,11 @@ public class CadastroController {
                         "O cadastro do cartão não foi concluído, então o teste ainda não começou. "
                       + "Dá para terminar aí embaixo.");
         } catch (Exception e) {
+            // Registrar aqui não é zelo: sem isto, qualquer defeito na
+            // confirmação vira a mesma mensagem genérica na tela e não deixa
+            // rastro nenhum no log — foi exatamente o que aconteceu quando a
+            // releitura do checkout batia num endpoint inexistente.
+            log.error("Falha ao confirmar o checkout da assinatura {}", assinaturaId, e);
             redirect.addFlashAttribute("erro",
                     "Não consegui confirmar seu cartão agora. Tente terminar o cadastro aí embaixo.");
         }

@@ -85,6 +85,10 @@
             </p>
             <a class="botao botao-primario botao-bloco" th:if="${a.checkoutLink != null}"
                th:href="${a.checkoutLink}">Informar o cartão</a>
+            <form th:action="@{'/painel/confirmar/' + ${a.id}}" method="post"
+                  th:if="${a.gatewayCheckoutId != null}">
+              <button class="elo-cancelar" type="submit">Já informei o cartão — verificar</button>
+            </form>
           </div>
 
           <!-- Em teste com cartão já validado: o que importa agora é a pessoa
@@ -95,8 +99,8 @@
             <b>Teste em andamento</b>
             <p class="cartao-nota-fraca">
               Primeira cobrança de <b th:text="${a.plano.precoFormatado()}">R$ 99,00</b>
-              em <b th:if="${a.acessoAte != null}"
-                    th:text="${#temporals.format(a.acessoAte, 'dd/MM/yyyy')}">30/09/2026</b>,
+              <span th:if="${faturas.containsKey(a.id) and faturas.get(a.id).vencimento != null}">
+                em <b th:text="${#temporals.format(faturas.get(a.id).vencimento, 'dd/MM/yyyy')}">07/10/2026</b></span>,
               no cartão cadastrado. Cancele antes e nada é cobrado.
             </p>
           </div>
@@ -134,8 +138,13 @@
 
           <!-- Fatura em aberto: quem assinou precisa achar onde pagar sem
                esperar e-mail. -->
-          <a class="botao botao-discreto botao-bloco" th:if="${faturas.containsKey(a.id)}"
-             th:href="${faturas.get(a.id)}" target="_blank" rel="noopener">
+          <!-- Não aparece durante o teste com cartão: ali o débito é
+               automático, e oferecer "pagar a fatura" convidaria o cliente a
+               pagar antes do fim dos dias grátis que acabamos de prometer. -->
+          <a class="botao botao-discreto botao-bloco"
+             th:if="${faturas.containsKey(a.id)
+                      and not (a.estado.name() == 'trial' and a.cobrancaAutomatica())}"
+             th:href="${faturas.get(a.id).link}" target="_blank" rel="noopener">
             Pagar a fatura
           </a>
 

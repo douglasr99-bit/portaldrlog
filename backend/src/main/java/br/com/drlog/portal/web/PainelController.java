@@ -89,6 +89,35 @@ public class PainelController {
     }
 
     /**
+     * "Já informei o cartão" — confere de novo.
+     *
+     * Existe porque a confirmação pode não estar pronta no instante em que o
+     * cliente volta do Asaas. Sem este botão, a única saída dele seria abrir
+     * outro checkout e cadastrar o cartão duas vezes.
+     */
+    @org.springframework.web.bind.annotation.PostMapping("/painel/confirmar/{id}")
+    public String confirmar(@org.springframework.web.bind.annotation.PathVariable java.util.UUID id,
+                            @AuthenticationPrincipal ContaAutenticada autenticada,
+                            org.springframework.web.servlet.mvc.support.RedirectAttributes redirect) {
+        try {
+            minhaAssinatura(id, autenticada);
+            if (cobranca.confirmarCheckout(id))
+                redirect.addFlashAttribute("boasVindas",
+                        "Cartão confirmado. Seu teste começou e o sistema já está liberado.");
+            else
+                redirect.addFlashAttribute("erro",
+                        "O Asaas ainda não confirmou esse cartão. Se você acabou de informá-lo, "
+                      + "espere alguns segundos e tente de novo.");
+        } catch (br.com.drlog.portal.service.AdminService.Recusa e) {
+            redirect.addFlashAttribute("erro", e.getMessage());
+        } catch (Exception e) {
+            redirect.addFlashAttribute("erro",
+                    "Não foi possível confirmar agora. Tente de novo em instantes.");
+        }
+        return "redirect:/painel";
+    }
+
+    /**
      * A assinatura, se ela for mesmo de quem está pedindo.
      *
      * Sem esta conferência, quem descobrisse o id de uma assinatura alheia

@@ -390,14 +390,15 @@ public class CobrancaService {
     }
 
     /**
-     * Confere o checkout no Asaas e libera o teste se o cartão foi aceito.
+     * Confere no Asaas se o cartão foi aceito e libera o teste.
      *
      * A volta do navegador passa pela máquina do cliente e por isso não prova
-     * nada: quem editasse a URL entraria sem cartão. O que decide é o status
-     * lido no gateway.
+     * nada: quem editasse a URL de sucesso entraria sem cartão. O que decide
+     * é a existência da assinatura do lado do Asaas — ela só nasce quando o
+     * cartão é aprovado.
      *
-     * Chamado tanto pela volta da tela quanto pelo webhook, e seguro nas duas
-     * — a liberação é idempotente.
+     * Chamado pela volta da tela, pelo webhook e pelo botão do painel. Seguro
+     * nos três: a liberação é idempotente.
      */
     @Transactional
     public boolean confirmarCheckout(UUID assinaturaId) {
@@ -407,53 +408,58 @@ public class CobrancaService {
         if (a.getEstado() != EstadoAssinatura.aguardando_pagamento) return true;
         if (a.getGatewayCheckoutId() == null) return false;
 
-        Map<String, Object> checkout = asaas.lerCheckout(a.getGatewayCheckoutId());
-        if (checkout == null || !"PAID".equals(String.valueOf(checkout.get("status")))) return false;
+        Optional<Map<String, Object>> assinaturaExterna =
+                asaas.assinaturaDoCheckout(a.getGatewayCheckoutId());
+        if (assinaturaExterna.isEmpty()) return false;
 
-        liberarTeste(a, checkout);
+        liberarTeste(a, assinaturaExterna.get());
         return true;
     }
 
     /**
      * Amarra a assinatura criada pelo checkout e liga o acesso.
      *
-     * Descobrir o id da assinatura do lado do Asaas é o passo que não pode
+     * Guardar o id da assinatura do lado do Asaas é o passo que não pode
      * faltar: sem ele, os eventos de pagamento seguintes chegariam sem
      * corresponder a nada aqui, e a renovação nunca estenderia o acesso — o
      * cliente seria cobrado e perderia o sistema no mesmo dia.
      */
-    private void liberarTeste(Assinatura a, Map<String, Object> checkout) {
-        String clienteId = (String) checkout.get("customer");
-        if (clienteId != null) {
-            a.setGatewayClienteId(clienteId);
-            try {
-                asaas.assinaturasDoCliente(clienteId).stream()
-                     .map(m -> (String) m.get("id"))
-                     .filter(java.util.Objects::nonNull)
-                     .findFirst()
-                     .ifPresent(a::setGatewayAssinaturaId);
-            } catch (Exception e) {
-                log.warn("Teste de {} liberado, mas não consegui amarrar a assinatura no Asaas: {}",
-                         a.getTenant().getNome(), e.toString());
-            }
-        }
+    private void liberarTeste(Assinatura a, Map<String, Object> externa) {
+        a.setGateway(GATEWAY);
+        a.setGatewayClienteId((String) externa.get("customer"));
+        a.setGatewayAssinaturaId((String) externa.get("id"));
 
-        // O fim do teste é a data em que o cartão será debitado. Ler do
-        // checkout em vez de recalcular evita que as duas datas discordem e o
-        // cliente seja cobrado um dia antes de perder o acesso, ou depois.
-        Instant fimDoTeste = dataDaPrimeiraCobranca(checkout)
+        Instant fimDoTeste = fimDoTestePelaPrimeiraCobranca(a)
                 .orElse(Instant.now().plus(Duration.ofDays(diasDeTeste)));
 
         liberacao.liberar(a, EstadoAssinatura.trial, fimDoTeste);
         assinaturas.save(a);
     }
 
-    @SuppressWarnings("unchecked")
-    private Optional<Instant> dataDaPrimeiraCobranca(Map<String, Object> checkout) {
-        Object bloco = checkout.get("subscription");
-        if (!(bloco instanceof Map<?, ?> m)) return Optional.empty();
-        LocalDate d = data(((Map<String, Object>) m).get("nextDueDate"));
-        return Optional.ofNullable(d).map(x -> x.atStartOfDay(FUSO).toInstant());
+    /**
+     * O fim do teste é o dia em que o cartão será debitado.
+     *
+     * Vem do vencimento da PRIMEIRA COBRANÇA, não do `nextDueDate` da
+     * assinatura: aquele campo já aponta para o ciclo seguinte assim que a
+     * primeira cobrança é gerada. Usá-lo daria ao cliente um mês inteiro de
+     * graça — e faria a data na tela discordar da data do débito.
+     *
+     * O acesso vai até o FIM desse dia. Terminar às 00:00 cortaria o sistema
+     * de manhã enquanto a cobrança ainda estaria sendo processada à tarde.
+     */
+    private Optional<Instant> fimDoTestePelaPrimeiraCobranca(Assinatura a) {
+        try {
+            return asaas.cobrancasDaAssinatura(a.getGatewayAssinaturaId()).stream()
+                    .peek(primeira -> registrarCobranca(a, primeira))
+                    .map(primeira -> data(primeira.get("dueDate")))
+                    .filter(java.util.Objects::nonNull)
+                    .min(java.time.LocalDate::compareTo)
+                    .map(d -> d.plusDays(1).atStartOfDay(FUSO).toInstant());
+        } catch (Exception e) {
+            log.warn("Teste de {} liberado, mas não consegui ler a primeira cobrança: {}",
+                     a.getTenant().getNome(), e.toString());
+            return Optional.empty();
+        }
     }
 
     /** O mesmo desfecho, quando quem avisa é o webhook e não o navegador. */

@@ -9,6 +9,7 @@ import org.springframework.web.client.RestClient;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * ============================================================================
@@ -200,37 +201,30 @@ public class AsaasClient {
     }
 
     /**
-     * Relê o checkout no Asaas.
+     * A assinatura que nasceu de um checkout, se ele foi mesmo pago.
      *
-     * A volta do navegador passa pela máquina do cliente, e por isso não vale
-     * como prova de que o cartão foi aceito. O que decide é o status lido
-     * aqui — mesma regra que já vale para o webhook.
+     * Não existe GET para checkouts na API do Asaas — só POST. O que fecha o
+     * círculo é o campo `checkoutSession`, que a assinatura criada carrega e
+     * que vale como filtro aqui.
+     *
+     * A ausência de resposta é a prova que interessa: a assinatura só nasce
+     * do lado do Asaas se o cartão foi aprovado. Por isso a volta do
+     * navegador continua não provando nada sozinha — quem editasse a URL de
+     * sucesso não encontraria assinatura nenhuma.
+     *
+     * Já foi tentado por `externalReference`, que este cliente grava ao criar
+     * o checkout: a assinatura resultante NÃO o herda, e volta sempre nulo.
      */
     @SuppressWarnings("unchecked")
-    public Map<String, Object> lerCheckout(String checkoutId) {
-        return http.get().uri("/checkouts/{id}", checkoutId)
-                .header("access_token", chave)
-                .retrieve().body(Map.class);
-    }
-
-    /**
-     * As assinaturas de um cliente.
-     *
-     * O checkout cria a assinatura do lado do Asaas, e o id dela não vem de
-     * volta de forma garantida. Sem descobrir esse id, os eventos de pagamento
-     * seguintes chegariam sem corresponder a nenhuma assinatura daqui — e a
-     * renovação nunca estenderia o acesso.
-     */
-    @SuppressWarnings("unchecked")
-    public java.util.List<Map<String, Object>> assinaturasDoCliente(String clienteId) {
+    public Optional<Map<String, Object>> assinaturaDoCheckout(String checkoutId) {
         Map<String, Object> r = http.get()
-                .uri(u -> u.path("/subscriptions").queryParam("customer", clienteId).build())
+                .uri(u -> u.path("/subscriptions").queryParam("checkoutSession", checkoutId).build())
                 .header("access_token", chave)
                 .retrieve().body(Map.class);
         Object dados = r == null ? null : r.get("data");
-        return dados instanceof java.util.List<?> lista
-                ? (java.util.List<Map<String, Object>>) lista
-                : java.util.List.of();
+        if (dados instanceof java.util.List<?> lista && !lista.isEmpty())
+            return Optional.of((Map<String, Object>) lista.get(0));
+        return Optional.empty();
     }
 
     /**
