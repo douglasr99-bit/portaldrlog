@@ -18,19 +18,24 @@ public class PainelService {
     private final ContaTenantRepository vinculos;
     private final AssinaturaRepository assinaturas;
     private final ProdutoRepository produtos;
+    private final CobrancaService cobrancas;
 
     public PainelService(ContaRepository contas, ContaTenantRepository vinculos,
-                         AssinaturaRepository assinaturas, ProdutoRepository produtos) {
+                         AssinaturaRepository assinaturas, ProdutoRepository produtos,
+                         CobrancaService cobrancas) {
         this.contas = contas;
         this.vinculos = vinculos;
         this.assinaturas = assinaturas;
         this.produtos = produtos;
+        this.cobrancas = cobrancas;
     }
 
     /** Uma linha do painel: o assinante e o que ele tem contratado. */
     public record LinhaTenant(Tenant tenant, Papel papel, List<Assinatura> assinaturas) {}
 
-    public record Painel(List<LinhaTenant> linhas, List<Produto> disponiveis) {}
+    /** A fatura em aberto de cada assinatura, quando houver. */
+    public record Painel(List<LinhaTenant> linhas, List<Produto> disponiveis,
+                         java.util.Map<java.util.UUID, String> faturas) {}
 
     @Transactional(readOnly = true)
     public Painel montar(UUID contaId) {
@@ -39,7 +44,7 @@ public class PainelService {
         List<ContaTenant> meusVinculos = vinculos.findByContaOrderByCriadoEmAsc(conta);
 
         if (meusVinculos.isEmpty()) {
-            return new Painel(List.of(), produtos.findByAtivoTrueOrderByOrdemAscNomeAsc());
+            return new Painel(List.of(), produtos.findByAtivoTrueOrderByOrdemAscNomeAsc(), Map.of());
         }
 
         List<Tenant> meusTenants = meusVinculos.stream().map(ContaTenant::getTenant).toList();
@@ -59,6 +64,13 @@ public class PainelService {
                         porTenant.getOrDefault(v.getTenant().getId(), List.of())))
                 .toList();
 
-        return new Painel(linhas, produtos.findByAtivoTrueOrderByOrdemAscNomeAsc());
+        // O link da fatura em aberto de cada assinatura. Sem ele, o cliente
+        // que acabou de assinar não teria como pagar sem sair da tela.
+        Map<UUID, String> faturas = new HashMap<>();
+        for (LinhaTenant linha : linhas)
+            for (Assinatura a : linha.assinaturas())
+                cobrancas.faturaEmAberto(a).ifPresent(c -> faturas.put(a.getId(), c.getLink()));
+
+        return new Painel(linhas, produtos.findByAtivoTrueOrderByOrdemAscNomeAsc(), faturas);
     }
 }

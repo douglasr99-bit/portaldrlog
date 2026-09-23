@@ -30,6 +30,7 @@
 
   <main class="conteudo">
 
+    <div class="alerta alerta-ok" th:if="${boasVindas}" role="status" th:text="${boasVindas}"></div>
     <div class="alerta alerta-erro" th:if="${erro}" role="alert" th:text="${erro}"></div>
 
     <div th:if="${#lists.isEmpty(linhas)}" class="vazio">
@@ -72,6 +73,32 @@
             Acesso até
             <span th:text="${#temporals.format(a.acessoAte, 'dd/MM/yyyy')}">30/09/2026</span>
           </p>
+
+          <!-- Em teste: quanto falta, e o caminho para continuar.
+               Aparece antes do botão de abrir porque é a decisão que a pessoa
+               precisa tomar, e ela some assim que a assinatura é criada. -->
+          <div class="aviso-teste" th:if="${a.estado.name() == 'trial' and not a.cobrancaAutomatica()}">
+            <b>Teste em andamento</b>
+            <span th:if="${a.acessoAte != null}"
+                  th:text="'até ' + ${#temporals.format(a.acessoAte, 'dd/MM')}">até 30/09</span>
+            <form th:action="@{'/painel/assinar/' + ${a.id}}" method="post" class="form-assinar">
+              <input class="entrada entrada-mini" name="documento" required
+                     th:value="${linha.tenant.documento}"
+                     placeholder="CNPJ ou CPF da loja">
+              <button class="botao botao-primario botao-mini" type="submit">Assinar</button>
+            </form>
+            <p class="cartao-nota-fraca">
+              Cobrança mensal pelo Asaas, com Pix, boleto ou cartão.
+              Cancelar é parar de pagar.
+            </p>
+          </div>
+
+          <!-- Fatura em aberto: quem assinou precisa achar onde pagar sem
+               esperar e-mail. -->
+          <a class="botao botao-discreto botao-bloco" th:if="${faturas.containsKey(a.id)}"
+             th:href="${faturas.get(a.id)}" target="_blank" rel="noopener">
+            Pagar a fatura
+          </a>
 
           <form th:action="@{'/abrir/' + ${a.id}}" method="post"
                 th:if="${a.permiteAcesso()}">

@@ -32,12 +32,14 @@
       <!-- O checkout chega na etapa 3. Até lá o botão leva a uma conversa
            de verdade, que é como as primeiras assinaturas vão ser fechadas
            de qualquer jeito. -->
-      <a th:if="${empresa.whatsappLink}" class="botao"
-         th:href="${empresa.whatsappLink} + '?text=' + ${#uris.escapeQueryParam('Olá! Quero assinar o ' + produto.nome + '.')}">
-        Quero assinar
+      <a class="botao" th:href="@{'/assinar/' + ${produto.codigo}}">Começar agora</a>
+      <!-- O WhatsApp continua como alternativa: parte deste público prefere
+           conversar antes de preencher formulário, e tirar essa porta custaria
+           venda. -->
+      <a th:if="${empresa.whatsappLink}" class="elo-conversa"
+         th:href="${empresa.whatsappLink} + '?text=' + ${#uris.escapeQueryParam('Olá! Tenho uma dúvida sobre o ' + produto.nome + '.')}">
+        ou tire uma dúvida no WhatsApp
       </a>
-      <a th:if="${empresa.whatsappLink == null and empresa.email != null}" class="botao"
-         th:href="'mailto:' + ${empresa.email}">Quero assinar</a>
     </div>
   </div>
 </div>

@@ -28,5 +28,8 @@ public interface AssinaturaRepository extends Repository<Assinatura, UUID> {
     /** Para o webhook encontrar a assinatura a partir do id do gateway. */
     Optional<Assinatura> findByGatewayAndGatewayAssinaturaId(String gateway, String assinaturaId);
 
+    /** Quantos testes estão em curso — a trava de capacidade olha para isto. */
+    long countByEstado(br.com.drlog.portal.model.EstadoAssinatura estado);
+
     Assinatura save(Assinatura assinatura);
 }

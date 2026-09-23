@@ -46,7 +46,9 @@
     </div>
 
     <a class="botao" th:unless="${s.emBreve}"
-       th:href="@{'/sistemas/' + ${s.codigo}}">Ver por dentro</a>
+       th:href="@{'/assinar/' + ${s.codigo}}">Começar agora</a>
+    <a class="elo-conversa" th:unless="${s.emBreve}"
+       th:href="@{'/sistemas/' + ${s.codigo}}">ou ver por dentro primeiro</a>
 
   </div>
 

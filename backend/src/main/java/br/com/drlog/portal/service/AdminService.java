@@ -86,7 +86,7 @@ public class AdminService {
         Plano plano = planos.findById(planoId)
                 .orElseThrow(() -> new Recusa("Plano não encontrado."));
 
-        String codigo = vazio(codigoPedido) ? codigoAPartirDe(nomeLoja) : codigoPedido.trim();
+        String codigo = vazio(codigoPedido) ? codigoDisponivelPara(nomeLoja) : codigoPedido.trim();
         if (tenants.existsByCodigo(codigo))
             throw new Recusa("Já existe um assinante com o código " + codigo + ".");
 
@@ -126,7 +126,7 @@ public class AdminService {
      * que nunca mais muda. Legível de propósito — quando alguém for ler um log
      * ou uma consulta, um nome diz de quem é o dado; um uuid não.
      */
-    private String codigoAPartirDe(String nome) {
+    public String codigoDisponivelPara(String nome) {
         String base = Normalizer.normalize(nome.trim(), Normalizer.Form.NFD)
                 .replaceAll("\\p{M}", "")
                 .toLowerCase()

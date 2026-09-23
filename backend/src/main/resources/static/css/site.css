@@ -685,3 +685,71 @@ a { color: inherit; }
 .carrossel-ponto.ativo { background-color: var(--acento); }
 .carrossel-ponto:hover { background-color: var(--tinta-3); }
 .carrossel-ponto:focus-visible { outline: 2px solid var(--acento); outline-offset: 3px; }
+
+
+/* ---------- assinar ---------- */
+
+.assinar-grade {
+  display: grid; grid-template-columns: 1.05fr 0.95fr;
+  gap: 56px; align-items: start;
+  padding: 34px 0 72px;
+}
+.assinar-form .formulario { margin-top: 24px; }
+.assinar-form .campo { margin-bottom: 20px; }
+.assinar-form .rotulo {
+  display: block; font-size: 13.5px; font-weight: 600;
+  color: var(--tinta-2); margin-bottom: 6px;
+}
+.assinar-form .entrada {
+  width: 100%;
+  /* 16px evita o zoom automático do Safari no iPhone ao focar o campo. */
+  font-size: 16px; font-family: var(--texto);
+  padding: 12px 14px;
+  background: var(--papel); color: var(--tinta);
+  border: 1px solid var(--linha); border-radius: var(--raio);
+  transition: border-color .15s;
+}
+.assinar-form .entrada:focus {
+  outline: none; border-color: var(--acento);
+  box-shadow: 0 0 0 3px rgba(168, 57, 27, .12);
+}
+.assinar-form select.entrada { appearance: none; }
+.ajuda { font-size: 12.5px; color: var(--tinta-3); margin-top: 6px; line-height: 1.45; }
+.ajuda b { color: var(--tinta-2); }
+.ajuda-centro { text-align: center; margin-top: 14px; }
+
+.assinar-resumo {
+  background: var(--papel-2);
+  border: 1px solid var(--linha); border-radius: var(--raio);
+  padding: 28px;
+}
+.assinar-resumo .rotulo { margin-bottom: 16px; }
+.assinar-resumo .cartao-titulo { font-family: var(--serifa); font-size: 26px; }
+.assinar-preco { margin: 18px 0 22px; }
+.assinar-preco .preco { display: block; font-size: 30px; }
+.assinar-resumo .lista-simples li { font-size: 14px; padding: 12px 0 12px 22px; }
+.assinar-resumo .lista-simples li::before { top: 21px; }
+
+/* Alternativa discreta ao lado do botão principal: quem prefere conversar
+   antes de preencher formulário não pode ficar sem porta. */
+.elo-conversa {
+  display: block; margin-top: 10px;
+  font-size: 13.5px; color: var(--tinta-3);
+  text-decoration: none; border-bottom: 1px solid transparent;
+}
+.elo-conversa:hover { color: var(--acento); border-bottom-color: var(--acento); }
+.ficha-direita .elo-conversa { text-align: right; }
+
+.alerta {
+  padding: 11px 14px; border-radius: var(--raio);
+  font-size: 14px; margin-top: 18px;
+}
+.alerta-erro { background: rgba(168,57,27,.08); color: var(--acento); }
+.alerta-ok   { background: rgba(47,107,63,.10); color: var(--verde); }
+
+@media (max-width: 900px) {
+  .assinar-grade { grid-template-columns: 1fr; gap: 32px; padding-bottom: 48px; }
+  /* O resumo vem antes do formulário no celular: a pessoa precisa lembrar o
+     que está levando antes de começar a digitar. */
+  .assinar-resumo { order: -1; }
+}

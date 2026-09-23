@@ -52,6 +52,16 @@ public class Assinatura {
     @Column(name = "acesso_ate")
     private Instant acessoAte;
 
+    /**
+     * De onde veio: 'administracao' ou 'autocadastro'.
+     *
+     * As duas origens merecem desconfianças diferentes: quem foi criado na
+     * administração passou por uma conversa; quem se cadastrou sozinho, não.
+     */
+    @Column(nullable = false)
+    @Builder.Default
+    private String origem = "administracao";
+
     /** Qual gateway cobra esta assinatura. Nulo enquanto for cobrança manual. */
     private String gateway;
 

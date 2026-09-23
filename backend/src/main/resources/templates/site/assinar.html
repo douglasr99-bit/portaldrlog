@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title th:text="'Assinar ' + ${produto.nome} + ' — Drlog'">Assinar — Drlog</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#F4F0E9">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="stylesheet" th:href="@{/css/site.css}">
+</head>
+<body>
+
+<header th:replace="~{site/_partes :: cabecalho}"></header>
+
+<div class="envelope">
+  <a class="volta" th:href="@{'/sistemas/' + ${produto.codigo}}">&larr; Voltar</a>
+
+  <div class="assinar-grade">
+
+    <div class="assinar-form">
+      <h1 class="produto-nome">Começar agora</h1>
+      <p class="produto-resumo">
+        <b th:text="${diasDeTeste}">7</b> dias para usar tudo, sem pagar nada e
+        sem cartão. Se não servir, é só não continuar.
+      </p>
+
+      <div class="alerta alerta-erro" th:if="${erro}" role="alert" th:text="${erro}"></div>
+
+      <form th:action="@{'/assinar/' + ${produto.codigo}}" method="post" class="formulario">
+
+        <div class="campo">
+          <label class="rotulo" for="nomeLoja">Nome da sua loja</label>
+          <input class="entrada" id="nomeLoja" name="nomeLoja" required autofocus
+                 th:value="${nomeLoja}" placeholder="Sapataria Boa Vista">
+          <p class="ajuda">É o nome que vai aparecer nas mensagens enviadas aos seus clientes.</p>
+        </div>
+
+        <div class="campo" th:if="${#lists.size(planos) > 1}">
+          <label class="rotulo" for="planoId">Plano</label>
+          <select class="entrada" id="planoId" name="planoId" required>
+            <option th:each="p : ${planos}" th:value="${p.id}"
+                    th:selected="${planoId != null and planoId.toString() == p.id.toString()}"
+                    th:text="${p.nome} + ' · ' + ${p.precoFormatado()}">Mensal · R$ 99,00</option>
+          </select>
+        </div>
+        <input type="hidden" name="planoId" th:if="${#lists.size(planos) == 1}"
+               th:value="${planos[0].id}">
+
+        <div class="campo">
+          <label class="rotulo" for="nomeResponsavel">Seu nome</label>
+          <input class="entrada" id="nomeResponsavel" name="nomeResponsavel" required
+                 th:value="${nomeResponsavel}">
+        </div>
+
+        <div class="campo">
+          <label class="rotulo" for="email">E-mail</label>
+          <input class="entrada" type="email" id="email" name="email" required
+                 autocapitalize="none" spellcheck="false" autocomplete="username"
+                 th:value="${email}">
+          <p class="ajuda">É com ele que você entra.</p>
+        </div>
+
+        <div class="campo">
+          <label class="rotulo" for="senha">Crie uma senha</label>
+          <input class="entrada" type="password" id="senha" name="senha" required
+                 minlength="8" autocomplete="new-password">
+          <p class="ajuda">Mínimo de 8 caracteres.</p>
+        </div>
+
+        <button class="botao botao-primario botao-bloco" type="submit">
+          Começar o teste
+        </button>
+
+        <p class="ajuda ajuda-centro">
+          Não pedimos cartão. Ao final dos <b th:text="${diasDeTeste}">7</b> dias,
+          você decide se continua.
+        </p>
+      </form>
+    </div>
+
+    <!-- O que a pessoa leva, ao lado do formulário: é o momento em que ela
+         mais precisa lembrar por que estava interessada. -->
+    <aside class="assinar-resumo">
+      <div class="rotulo">O que você leva</div>
+      <h2 class="cartao-titulo" th:text="${produto.nome}">Styllus</h2>
+      <p class="cartao-descricao" th:text="${produto.resumo}">Resumo.</p>
+
+      <div class="assinar-preco" th:if="${not #lists.isEmpty(planos)}">
+        <span class="preco" th:text="${planos[0].precoFormatado()}">R$ 99,00</span>
+        <span class="preco-ciclo">por mês, depois do teste</span>
+      </div>
+
+      <ul class="lista-simples">
+        <li><b>O WhatsApp é o da sua loja.</b> Conectado uma vez pelo QR Code.
+            As mensagens saem do número que seus clientes já conhecem.</li>
+        <li><b>Balcão e celular ao mesmo tempo.</b> Os dados ficam no servidor.</li>
+        <li><b>Sem limite</b> de serviços, clientes ou usuários.</li>
+        <li><b>Cancelar é parar de pagar.</b> Nada de multa nem fidelidade.</li>
+      </ul>
+    </aside>
+
+  </div>
+</div>
+
+<footer th:replace="~{site/_partes :: rodape}"></footer>
+</body>
+</html>

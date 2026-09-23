@@ -1568,3 +1568,119 @@ assinatura no Asaas: ele continuaria emitindo cobrança.
 **O Asaas se contradiz sobre `SUBSCRIPTION_*`.** A máquina de estados ignora
 esses eventos de propósito e se apoia nos de cobrança, que correspondem a
 dinheiro tendo entrado.
+
+---
+
+## 23. Etapa 5 — assinar sem intervenção
+
+O visitante cria a conta na vitrine, ganha 7 dias com tudo ligado, e converte
+pagando — sem ninguém do outro lado em nenhum momento.
+
+### O caminho
+
+```
+  vitrine → "Começar agora" → formulário → conta criada
+                                            + assinante
+                                            + assinatura em teste (7 dias)
+                                            + instância de WhatsApp
+                                            + sessão aberta
+                                                  ↓
+                                            painel, já dentro
+                                                  ↓
+                        "Assinar" (pede CNPJ) → assinatura no Asaas
+                                                  ↓
+                                            link da fatura na tela
+                                                  ↓
+                        pagamento → webhook → ativa, +1 ciclo
+```
+
+### Decisões
+
+**Teste com WhatsApp incluído.** Um teste sem ele testaria outra coisa: o
+aviso automático é o motivo pelo qual a loja compra. O custo é uma instância
+na Evolution por cadastro — inclusive os abandonados.
+
+**Entra direto, sem aprovação.** O cadastro abre a sessão da conta recém-criada.
+Sem isso, a pessoa terminaria numa tela de login pedindo a senha que acabou de
+escolher — o pior momento possível para pedir qualquer coisa.
+
+**O documento só é pedido na hora de pagar.** Exigir CNPJ para começar um teste
+afasta quem só queria experimentar. Na conversão ele é inevitável: o Asaas
+exige.
+
+**O WhatsApp continua como porta alternativa**, ao lado do botão principal.
+Parte deste público prefere conversar antes de preencher formulário, e tirar
+essa porta custaria venda.
+
+**O link da fatura aparece na tela** logo depois de assinar. Sem ele, o cliente
+sairia sabendo que assinou e sem saber como pagar, esperando um e-mail.
+
+### As travas, e por que elas existem
+
+Cadastro aberto **com provisionamento automático de WhatsApp** é, sem travas,
+um caminho para esgotar a memória do servidor: cada conta criada consome uma
+instância na Evolution.
+
+| Trava | Padrão | O que evita |
+| :--- | :--- | :--- |
+| Cadastros por IP por hora | 3 | script ingênuo, clique repetido, teste de formulário |
+| Teto de testes simultâneos | 25 | um pico derrubar quem já é cliente pagante |
+
+A primeira não impede um atacante decidido, que troca de IP. Impede o caso
+comum, que é o que realmente derrubaria o servidor por acidente.
+
+A segunda protege a escolha certa numa disputa: **barrar quem chega é ruim;
+derrubar quem paga é pior.**
+
+Toda recusa é registrada em `cadastros_recusados`, com IP, e-mail e motivo —
+porque uma trava apertada que rejeita cliente de verdade é pior que o abuso
+que ela evita, e isso precisa ser perceptível.
+
+### E-mail repetido não revela nada
+
+A mensagem é *"Não foi possível criar a conta com esse e-mail. Se já é seu,
+entre pelo login."* Dizer "esta conta já existe" a quem não a possui revela
+quem é cliente.
+
+### Um defeito que anulava a própria proteção
+
+As recusas eram gravadas **dentro** da transação do cadastro, que em seguida
+lançava a exceção de recusa — e o rollback apagava o registro. A tabela ficava
+sempre vazia, justamente a tabela que existe para tornar visível quando a
+trava barra demais.
+
+Corrigido com um componente próprio em `REQUIRES_NEW`. Componente separado, e
+não um método do mesmo serviço, porque `REQUIRES_NEW` só vale através do proxy
+do Spring: uma chamada a si mesmo o ignoraria em silêncio.
+
+### Verificação feita
+
+| Cenário | Resultado |
+| :--- | :--- |
+| Botões da vitrine | levam a `/assinar/{produto}`, com o WhatsApp como alternativa |
+| Cadastro completo | conta, assinante, teste de 7 dias e WhatsApp provisionado |
+| Depois do cadastro | entra direto no painel, sem passar por login |
+| 3º cadastro do mesmo IP (limite 2) | recusado, com mensagem que oferece o WhatsApp |
+| Cadastro de outro IP com o teto cheio | recusado |
+| Recusas registradas | IP, e-mail e motivo gravados |
+| Teste convertido libera capacidade | cadastro seguinte aceito |
+| E-mail repetido | recusado sem revelar que a conta existe |
+| Cliente assina do painel | assinatura criada no Asaas, com o documento informado |
+| Link da fatura | aparece na tela logo depois |
+| Pagamento pelo webhook | vira `ativa`, +1 ciclo, e o convite ao teste some |
+| Erros de console | nenhum |
+
+### O que fica em aberto
+
+**Teste que vence não é limpo.** A instância de WhatsApp de um teste
+abandonado continua na Evolution, consumindo memória. Falta uma faxina — e
+ela é o que impede o teto de encher com abandono.
+
+**Não há aviso de fim de teste.** Nem e-mail nem tela: quem esquece
+simplesmente perde o acesso no oitavo dia. É o momento de maior chance de
+conversão, e ele passa em silêncio.
+
+**Não há confirmação de e-mail.** Um endereço inventado cria conta, teste e
+instância. As travas limitam o volume, mas não a qualidade.
+
+**Cancelar continua não exposto** — nem para o cliente nem na administração.

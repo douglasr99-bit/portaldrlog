@@ -129,6 +129,16 @@ public class CobrancaService {
         a.setGateway(GATEWAY);
         a.setGatewayClienteId(clienteId);
         a.setGatewayAssinaturaId(assinaturaExterna);
+
+        // Registra a primeira cobrança já aqui, pelo link da fatura: sem ele,
+        // o cliente sai da tela sabendo que assinou e sem saber como pagar.
+        try {
+            asaas.cobrancasDaAssinatura(assinaturaExterna).stream().findFirst()
+                 .ifPresent(primeira -> registrarCobranca(a, primeira));
+        } catch (Exception e) {
+            log.warn("Assinatura {} criada, mas não consegui ler a primeira cobrança: {}",
+                     assinaturaExterna, e.toString());
+        }
         log.info("Cobrança ativada para {}: assinatura {} no Asaas, primeiro vencimento {}",
                  tenant.getNome(), assinaturaExterna, primeiroVencimento);
         return assinaturas.save(a);
@@ -282,6 +292,33 @@ public class CobrancaService {
 
     @Transactional(readOnly = true)
     public List<EventoGateway> ultimosEventos() { return eventos.findTop30ByOrderByRecebidoEmDesc(); }
+
+    /**
+     * O cliente assinando por conta própria, a partir do teste.
+     *
+     * O documento é pedido aqui, e não no cadastro: exigir CNPJ para começar
+     * um teste afasta quem só queria experimentar. Na hora de pagar, ele é
+     * inevitável — o Asaas exige.
+     */
+    @Transactional
+    public Assinatura assinar(UUID assinaturaId, String documento) {
+        Assinatura a = assinaturas.findById(assinaturaId)
+                .orElseThrow(() -> new AdminService.Recusa("Assinatura não encontrada."));
+
+        if (documento != null && !documento.isBlank())
+            a.getTenant().setDocumento(documento.trim());
+
+        return ativarCobranca(assinaturaId);
+    }
+
+    /** A fatura em aberto, para a tela oferecer o link de pagamento. */
+    @Transactional(readOnly = true)
+    public Optional<Cobranca> faturaEmAberto(Assinatura a) {
+        return cobrancas.findByAssinaturaOrderByVencimentoDesc(a).stream()
+                .filter(c -> c.getLink() != null && !c.getLink().isBlank())
+                .filter(c -> !List.of("RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH").contains(c.getStatus()))
+                .findFirst();
+    }
 
     @Transactional(readOnly = true)
     public List<Cobranca> cobrancasDe(Assinatura a) {

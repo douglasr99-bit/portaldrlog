@@ -107,6 +107,25 @@ public class AsaasClient {
     }
 
     /**
+     * As cobranças de uma assinatura.
+     *
+     * Usada logo depois de criar a assinatura, para pegar o link da primeira
+     * fatura. Sem ele, o cliente sairia da tela sabendo que assinou e sem
+     * saber como pagar — e teria de esperar o e-mail do Asaas.
+     */
+    @SuppressWarnings("unchecked")
+    public java.util.List<Map<String, Object>> cobrancasDaAssinatura(String assinaturaId) {
+        Map<String, Object> r = http.get()
+                .uri("/subscriptions/{id}/payments", assinaturaId)
+                .header("access_token", chave)
+                .retrieve().body(Map.class);
+        Object dados = r == null ? null : r.get("data");
+        return dados instanceof java.util.List<?> lista
+                ? (java.util.List<Map<String, Object>>) lista
+                : java.util.List.of();
+    }
+
+    /**
      * Relê uma cobrança direto no Asaas.
      *
      * É o passo que torna o webhook seguro. O endpoint é público; sem

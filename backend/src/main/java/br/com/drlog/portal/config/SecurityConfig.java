@@ -44,6 +44,9 @@ public class SecurityConfig {
                 // A vitrine é pública: é a porta da frente da empresa, e
                 // quem chega nela ainda não tem conta nenhuma.
                 .requestMatchers("/", "/sistemas/**").permitAll()
+                // Assinar é público por definição: quem chega aqui ainda não
+                // tem conta nenhuma.
+                .requestMatchers("/assinar/**").permitAll()
                 // "/error" é o caminho real do Spring, não "/erro". Sem liberá-lo,
                 // qualquer erro numa página pública — um endereço de sistema
                 // que não existe, por exemplo — redireciona o visitante para a
