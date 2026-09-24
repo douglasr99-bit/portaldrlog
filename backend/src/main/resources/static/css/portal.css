@@ -255,7 +255,19 @@ body {
   border-radius: var(--raio);
   background: var(--superficie);
 }
+/* A largura mínima é o que faz a rolagem existir de verdade.
+   Sem ela, `width: 100%` manda o navegador espremer as colunas até caberem —
+   e o resultado é "Styllus — Gestão de Sapataria" quebrado em quatro linhas
+   num espaço onde só faltavam alguns pixels. Com ela, as colunas ficam no
+   tamanho que pedem e quem rola é o invólucro, não a página. */
 .tabela { width: 100%; border-collapse: collapse; font-size: 14px; }
+
+/* Só a tabela de assinantes precisa da largura mínima — ela tem oito colunas,
+   e sem um piso o navegador espreme até caber, quebrando "Styllus — Gestão de
+   Sapataria" em quatro linhas por falta de alguns pixels. A do funil tem
+   números curtos e cabe em qualquer tela; forçar o mesmo piso nela criaria
+   rolagem onde não há necessidade. */
+.tabela:not(.tabela-funil) { min-width: 980px; }
 .tabela th {
   text-align: left; font-size: 11.5px; font-weight: 600;
   text-transform: uppercase; letter-spacing: .08em;
@@ -274,6 +286,9 @@ body {
   font-size: 12px; color: var(--texto-fraco);
   background: var(--superficie-2); border-radius: 4px;
   padding: 1px 6px; display: inline-block; margin-top: 4px;
+  /* Código é identificador: partido ao meio deixa de ser copiável de olho,
+     e o crachá quebrado em duas linhas dobra a altura da linha da tabela. */
+  white-space: nowrap;
 }
 .texto-fraco { color: var(--texto-fraco); }
 
@@ -282,8 +297,20 @@ body {
   font-size: 11.5px; font-weight: 600; color: var(--warning);
 }
 
-.acoes { display: flex; gap: 6px; flex-wrap: wrap; }
+/* Os botões de ação ficam lado a lado, sempre.
+   Quebrar linha aqui dobra a altura da linha da tabela e faz "Renovar" e
+   "Suspender" parecerem pertencer a lugares diferentes. A tabela já tem
+   rolagem horizontal própria (.tabela-rolagem), então é ela quem absorve a
+   largura — e o `width: 1%` com nowrap faz a coluna ocupar exatamente o que
+   o conteúdo pede, devolvendo o resto às colunas de texto. */
+.acoes { display: flex; gap: 6px; flex-wrap: nowrap; align-items: center; }
 .acoes form { margin: 0; }
+td.acoes { white-space: nowrap; }
+.acoes .botao-mini { white-space: nowrap; }
+
+/* A coluna do WhatsApp tem o mesmo aperto: o nome da instância é longo e
+   empurra o botão para baixo. */
+td.coluna-whatsapp { white-space: nowrap; }
 .botao-mini { min-height: 32px; padding: 5px 12px; font-size: 12.5px; }
 
 /* ---------- formulário ---------- */
@@ -375,3 +402,9 @@ select.entrada { appearance: none; }
 .lista-origens li:last-child { border-bottom: none; }
 .origem-linha { flex: 1 1 auto; border-bottom: 1px dotted var(--fio, rgba(255,255,255,.18)); }
 .origem-conta { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+/* Nome do sistema e preço não quebram.
+   "Styllus — Gestão de Sapataria" em quatro linhas e "R$" separado do "99,00"
+   dobram a altura da linha e fazem a tabela parecer desarrumada. A tabela fica
+   mais larga e o invólucro rola — que é exatamente para isso que ele existe. */
+td.coluna-sistema, td.coluna-plano { white-space: nowrap; }

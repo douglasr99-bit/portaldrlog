@@ -140,8 +140,8 @@
               <b th:text="${linha.tenant.nome}">Sapataria</b>
               <span class="codigo" th:text="${linha.tenant.codigo}">codigo</span>
             </td>
-            <td th:text="${a.produto.nome}">Styllus</td>
-            <td>
+            <td class="coluna-sistema" th:text="${a.produto.nome}">Styllus</td>
+            <td class="coluna-plano">
               <span th:text="${a.plano.nome}">Mensal</span><br>
               <span class="texto-fraco" th:text="${a.plano.precoFormatado()}">R$ 99,00</span>
             </td>
@@ -160,7 +160,7 @@
                     and a.acessoAte.isBefore(T(java.time.Instant).now().plusSeconds(604800))
                     and a.acessoAte.isAfter(T(java.time.Instant).now())}">vence em breve</span>
             </td>
-            <td th:with="prov=${provisionamentos.get(linha.tenant.id)}">
+            <td class="coluna-whatsapp" th:with="prov=${provisionamentos.get(linha.tenant.id)}">
               <span th:if="${prov != null and prov.estado == 'ativo'}" class="selo selo-ok">pronta</span>
               <span th:if="${prov != null and prov.estado == 'falhou'}" class="selo selo-bloqueado"
                     th:title="${prov.erro}">falhou</span>
