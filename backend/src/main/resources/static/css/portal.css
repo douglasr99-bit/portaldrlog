@@ -268,6 +268,13 @@ body {
    números curtos e cabe em qualquer tela; forçar o mesmo piso nela criaria
    rolagem onde não há necessidade. */
 .tabela:not(.tabela-funil) { min-width: 980px; }
+
+/* Alinhamento pelo meio na tabela de assinantes.
+   Com `top`, a linha fica alta por causa da coluna do WhatsApp (selo, código e
+   botão empilhados) e os botões de ação ficam grudados na borda de cima,
+   descolados do resto — parecem pertencer a outra linha. Centralizado, tudo
+   que diz respeito à mesma loja fica na mesma faixa visual. */
+.tabela:not(.tabela-funil) td { vertical-align: middle; }
 .tabela th {
   text-align: left; font-size: 11.5px; font-weight: 600;
   text-transform: uppercase; letter-spacing: .08em;
@@ -303,9 +310,15 @@ body {
    rolagem horizontal própria (.tabela-rolagem), então é ela quem absorve a
    largura — e o `width: 1%` com nowrap faz a coluna ocupar exatamente o que
    o conteúdo pede, devolvendo o resto às colunas de texto. */
-.acoes { display: flex; gap: 6px; flex-wrap: nowrap; align-items: center; }
-.acoes form { margin: 0; }
+/* A célula NÃO pode ser flex.
+   `display: flex` num <td> o tira do algoritmo da tabela: ele deixa de ser
+   table-cell, `vertical-align` para de valer, e a célula não acompanha a
+   altura da linha — os botões ficam grudados no topo, descolados do resto.
+   Foi exatamente esse o sintoma. Com os formulários em inline-block, os
+   botões ficam lado a lado do mesmo jeito e a célula continua sendo célula. */
 td.acoes { white-space: nowrap; }
+.acoes form { display: inline-block; margin: 0; vertical-align: middle; }
+.acoes form + form { margin-left: 6px; }
 .acoes .botao-mini { white-space: nowrap; }
 
 /* A coluna do WhatsApp tem o mesmo aperto: o nome da instância é longo e
