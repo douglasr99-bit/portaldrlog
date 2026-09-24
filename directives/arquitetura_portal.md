@@ -1914,6 +1914,49 @@ acabáramos de prometer.
 > **sem** `APP_EMPRESA_WHATSAPP` — o `dev.sh` tem um padrão para essa variável
 > e ela não fica vazia em desenvolvimento.
 
+### O beco sem saída, e por que ele era pior do que parecia
+
+Um cadastro em `aguardando_pagamento` podia ficar sem caminho de volta de
+duas formas:
+
+- o **checkout nunca chegou a ser criado**, porque a chamada ao Asaas falhou
+  depois de a conta já existir — a conta é gravada numa transação própria, que
+  já tinha sido confirmada quando o erro apareceu;
+- o **checkout expirou**. Eles duram 60 minutos. Quem volta no dia seguinte
+  clica no link guardado e cai numa página morta.
+
+Nos dois casos a pessoa ficava com uma conta inutilizável **e sem poder
+recadastrar o mesmo e-mail**, porque ele já constava como usado. O pior
+desfecho possível para alguém que já tinha decidido comprar — e, no primeiro
+caso, causado por uma instabilidade nossa, não dela.
+
+O conserto foi tirar o botão do link guardado. "Informar o cartão" virou um
+POST que decide na hora:
+
+1. **confirma antes de criar.** Se o checkout guardado já tiver sido pago,
+   criar outro faria o Portal esquecer a assinatura nascida do primeiro — e o
+   cliente pagaria sem que a renovação soubesse a quem pertence;
+2. se a loja tem documento, o caminho era "Assinar agora": reativa a cobrança;
+3. senão, abre um checkout novo.
+
+O documento é o que distingue os dois caminhos depois do fato, sem guardar a
+escolha num campo que só serviria para isso.
+
+### Os simuladores foram para dentro do repositório
+
+`scripts/simuladores/` guarda o Asaas e a Evolution fingidos. Estavam num
+diretório temporário e se perderam numa faxina — junto com tudo o que tinham
+aprendido sobre a API real.
+
+Eles não existem só para poupar chamadas ao gateway. Existem para **discordar
+do código**: o 404 em `GET /checkouts`, o `externalReference` que volta nulo, o
+`nextDueDate` que pula um ciclo, a cobrança pendente que some quando a
+assinatura é cancelada. Cada um desses comportamentos está lá porque a
+ausência dele deixou passar um defeito para produção.
+
+Um simulador escrito a partir das mesmas suposições do código não testa nada:
+ele concorda.
+
 ### O que fica em aberto
 
 **Conta abandonada prende o e-mail.** Quem para no checkout e tenta se

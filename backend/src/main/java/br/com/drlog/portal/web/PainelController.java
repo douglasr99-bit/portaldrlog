@@ -10,6 +10,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 @Controller
 public class PainelController {
 
+    private static final org.slf4j.Logger log =
+            org.slf4j.LoggerFactory.getLogger(PainelController.class);
+
     private final PainelService painel;
     private final br.com.drlog.portal.service.CobrancaService cobranca;
     private final br.com.drlog.portal.repository.ContaTenantRepository vinculos;
@@ -84,6 +87,35 @@ public class PainelController {
         } catch (Exception e) {
             redirect.addFlashAttribute("erro",
                     "Não foi possível cancelar agora. Tente de novo em instantes.");
+        }
+        return "redirect:/painel";
+    }
+
+    /**
+     * "Informar o cartão" — retoma um cadastro parado no meio.
+     *
+     * Não aponta para o link guardado porque ele pode estar morto: checkout do
+     * Asaas expira em 60 minutos, e pode nem ter chegado a existir se a
+     * chamada falhou depois de a conta ser criada. Passar por aqui garante um
+     * caminho vivo em qualquer um dos casos.
+     */
+    @org.springframework.web.bind.annotation.PostMapping("/painel/retomar/{id}")
+    public String retomar(@org.springframework.web.bind.annotation.PathVariable java.util.UUID id,
+                          @AuthenticationPrincipal ContaAutenticada autenticada,
+                          org.springframework.web.servlet.mvc.support.RedirectAttributes redirect) {
+        try {
+            minhaAssinatura(id, autenticada);
+            var destino = cobranca.retomar(id);
+            if (destino.isPresent()) return "redirect:" + destino.get();
+            redirect.addFlashAttribute("boasVindas",
+                    "Cadastro retomado. Confira abaixo como concluir.");
+        } catch (br.com.drlog.portal.service.AdminService.Recusa e) {
+            redirect.addFlashAttribute("erro", e.getMessage());
+        } catch (Exception e) {
+            log.error("Falha ao retomar o cadastro da assinatura {}", id, e);
+            redirect.addFlashAttribute("erro",
+                    "Não consegui retomar seu cadastro agora. "
+                  + "Tente de novo em instantes ou fale com a gente no WhatsApp.");
         }
         return "redirect:/painel";
     }

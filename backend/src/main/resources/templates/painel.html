@@ -83,8 +83,16 @@
               Sua conta está criada, mas o sistema só abre depois que o
               pagamento for confirmado.
             </p>
-            <a class="botao botao-primario botao-bloco" th:if="${a.checkoutLink != null}"
-               th:href="${a.checkoutLink}">Informar o cartão</a>
+            <!-- Sempre pelo POST, nunca pelo link guardado: o checkout do Asaas
+                 expira em 60 minutos, e pode nem ter chegado a existir se a
+                 chamada falhou depois de a conta ser criada. Apontar para o
+                 link morto deixaria a pessoa num beco sem saída, com o e-mail
+                 preso numa conta que ela não consegue usar nem recadastrar. -->
+            <form th:action="@{'/painel/retomar/' + ${a.id}}" method="post">
+              <button class="botao botao-primario botao-bloco" type="submit">
+                Informar o cartão
+              </button>
+            </form>
             <form th:action="@{'/painel/confirmar/' + ${a.id}}" method="post"
                   th:if="${a.gatewayCheckoutId != null}">
               <button class="elo-cancelar" type="submit">Já informei o cartão — verificar</button>

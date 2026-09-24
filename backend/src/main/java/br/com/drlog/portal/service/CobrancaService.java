@@ -462,6 +462,46 @@ public class CobrancaService {
         }
     }
 
+    /**
+     * Retoma um cadastro que parou no meio.
+     *
+     * Existe porque um cadastro em `aguardando_pagamento` podia virar beco sem
+     * saída de duas formas: o checkout nunca chegou a ser criado, porque a
+     * chamada ao Asaas falhou depois de a conta já existir; ou o checkout foi
+     * criado e **expirou** — eles duram 60 minutos, e quem volta no dia
+     * seguinte clicaria num link morto.
+     *
+     * Nos dois casos a pessoa ficava com uma conta inutilizável e sem poder
+     * recadastrar o mesmo e-mail, que é o pior desfecho possível para alguém
+     * que já tinha decidido comprar.
+     *
+     * Confirmar vem antes de criar, sempre: se o checkout guardado já tiver
+     * sido pago, criar outro faria o Portal esquecer a assinatura que nasceu
+     * do primeiro — e o cliente pagaria sem que a renovação encontrasse a
+     * quem pertence.
+     *
+     * Devolve para onde mandar o cliente, ou vazio quando não há para onde ir
+     * além do próprio painel.
+     */
+    @Transactional
+    public Optional<String> retomar(UUID assinaturaId) {
+        Assinatura a = assinaturas.findById(assinaturaId)
+                .orElseThrow(() -> new AdminService.Recusa("Assinatura não encontrada."));
+
+        if (a.getEstado() != EstadoAssinatura.aguardando_pagamento) return Optional.empty();
+        if (a.getGatewayCheckoutId() != null && confirmarCheckout(assinaturaId)) return Optional.empty();
+
+        // Quem escolheu "Assinar agora" informou o documento no cadastro. É o
+        // que distingue os dois caminhos depois do fato, sem guardar a escolha
+        // num campo que só serviria para isto.
+        String documento = a.getTenant().getDocumento();
+        if (documento != null && !documento.isBlank()) {
+            ativarCobranca(assinaturaId);
+            return Optional.empty();
+        }
+        return Optional.of(iniciarTesteComCartao(a));
+    }
+
     /** O mesmo desfecho, quando quem avisa é o webhook e não o navegador. */
     private String aplicarCheckout(String tipo, JsonNode checkout) {
         String checkoutId = texto(checkout, "id");
