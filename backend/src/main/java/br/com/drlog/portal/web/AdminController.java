@@ -52,6 +52,7 @@ public class AdminController {
         model.addAttribute("evolutionConfigurada", provisionamento.configurado());
         model.addAttribute("asaasConfigurado", cobranca.configurado());
         model.addAttribute("funil", medicao.temDados() ? medicao.diasComMovimento(14) : null);
+        model.addAttribute("origens", medicao.temDados() ? medicao.principais(14, 8) : null);
         return "admin/lista";
     }
 

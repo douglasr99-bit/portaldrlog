@@ -36,12 +36,17 @@ public class RegistroDeVisitas {
     /** Lido uma vez e guardado: é fixo, e ir ao banco a cada visita seria desperdício. */
     private volatile String sal;
 
+    private static final int TETO_DE_ORIGENS = 40;
+    private final java.util.Set<String> conhecidas = new java.util.HashSet<>();
+    private LocalDate diaDasConhecidas;
+
     public RegistroDeVisitas(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
     }
 
     @Async
-    public void registrar(String caminho, String ip, String navegador, boolean robo) {
+    public void registrar(String caminho, String ip, String navegador, boolean robo,
+                          String referencia, String campanha, String meuHost) {
         try {
             LocalDate dia = LocalDate.now(FUSO);
 
@@ -55,14 +60,94 @@ public class RegistroDeVisitas {
             // Robô não entra na conta de visitantes: inflaria o denominador do
             // funil e faria a taxa de conversão parecer pior do que é.
             if (!robo) {
-                jdbc.update("""
+                int novo = jdbc.update("""
                         insert into visitantes (dia, marca) values (?, ?)
                         on conflict do nothing
                         """, dia, marcaDe(dia, ip, navegador));
+
+                // A origem é contada uma vez por visitante, no momento em que
+                // ele aparece pela primeira vez no dia. Contar a cada página
+                // diria de onde veio cada clique — e como a pessoa navega
+                // dentro do próprio site, quase tudo seria "interno".
+                if (novo == 1) {
+                    jdbc.update("""
+                            insert into origens (dia, origem, visitantes)
+                            values (?, ?, 1)
+                            on conflict (dia, origem)
+                            do update set visitantes = origens.visitantes + 1
+                            """, dia, origemDe(dia, referencia, campanha, meuHost));
+                }
             }
         } catch (Exception e) {
             // Nunca propaga. Medição que derruba a página mede o quê?
             log.debug("Não consegui registrar a visita a {}: {}", caminho, e.toString());
+        }
+    }
+
+    /**
+     * De onde a pessoa veio.
+     *
+     * A campanha (`utm_source`) vem antes do `referer` de propósito: o
+     * navegador interno do Instagram costuma não enviar `referer`, e é
+     * justamente essa origem que mais interessa medir. Sem a campanha, o
+     * tráfego do Instagram apareceria como "direto" e a divulgação pareceria
+     * não estar funcionando.
+     */
+    private String origemDe(LocalDate dia, String referencia, String campanha, String meuHost) {
+        String bruta = (campanha != null && !campanha.isBlank())
+                ? campanha
+                : classificar(referencia, meuHost);
+        return limitada(dia, normalizar(bruta));
+    }
+
+    private static String classificar(String referencia, String meuHost) {
+        if (referencia == null || referencia.isBlank()) return "direto";
+        String h;
+        try {
+            h = java.net.URI.create(referencia).getHost();
+        } catch (Exception e) {
+            return "outro";
+        }
+        if (h == null) return "outro";
+        h = h.toLowerCase();
+
+        if (meuHost != null && h.equalsIgnoreCase(meuHost)) return "interno";
+        if (h.contains("instagram"))                        return "instagram";
+        if (h.contains("facebook") || h.startsWith("fb."))  return "facebook";
+        if (h.contains("whatsapp") || h.contains("wa.me"))  return "whatsapp";
+        if (h.contains("google"))                           return "google";
+        if (h.contains("bing"))                             return "bing";
+        if (h.contains("duckduckgo"))                       return "duckduckgo";
+        if (h.contains("youtube") || h.contains("youtu.be"))return "youtube";
+        if (h.contains("linkedin"))                         return "linkedin";
+        if (h.contains("tiktok"))                           return "tiktok";
+        return h.startsWith("www.") ? h.substring(4) : h;
+    }
+
+    private static String normalizar(String s) {
+        String limpo = s.toLowerCase().replaceAll("[^a-z0-9._-]", "");
+        if (limpo.isBlank()) return "outro";
+        return limpo.length() > 40 ? limpo.substring(0, 40) : limpo;
+    }
+
+    /**
+     * Teto de origens distintas por dia.
+     *
+     * `utm_source` vem da URL, ou seja, de quem chega. Sem teto, alguém
+     * gerando valores aleatórios encheria a tabela de medição — e o custo
+     * seria nosso. Passando do teto, o excedente vira "outro": perde-se
+     * detalhe, não se perde a contagem.
+     */
+    private String limitada(LocalDate dia, String origem) {
+        synchronized (conhecidas) {
+            if (!dia.equals(diaDasConhecidas)) {
+                conhecidas.clear();
+                diaDasConhecidas = dia;
+            }
+            if (conhecidas.contains(origem)) return origem;
+            if (conhecidas.size() >= TETO_DE_ORIGENS) return "outro";
+            conhecidas.add(origem);
+            return origem;
         }
     }
 

@@ -2064,14 +2064,53 @@ porque "ainda não veio ninguém hoje" é informação.
 | Marca gravada | hash, sem endereço legível |
 | Sal | uma linha, criada pela migração |
 | Dias sem movimento | omitidos; hoje sempre presente |
+| Origem por `referer` | Instagram, Google, WhatsApp e domínio cru classificados |
+| Origem por `utm_source` | prevalece sobre o `referer` |
+| Visitante que volta | não conta origem de novo |
+| Soma das origens | igual aos visitantes distintos |
+| 60 `utm_source` aleatórios | teto respeitado; 25 caíram em "outro"; soma intacta |
+| Lista de origens | oito maiores mais uma linha de resto |
 | Lista de assinantes | visível sem rolagem |
 | Erros de console | nenhum |
+
+### De onde vieram
+
+Saber quantos chegaram não diz o que fazer; saber de onde, sim. Se o Instagram
+traz gente e a busca não traz, o esforço vai para um lado; se é quase tudo
+direto, alguém está passando o endereço na mão, e é isso que está funcionando.
+
+**A campanha vem antes do `referer`.** O navegador interno do Instagram
+costuma não enviar `referer` — e é justamente essa a origem que mais interessa
+medir. Sem ler `utm_source`, o tráfego do Instagram apareceria como "direto" e
+a divulgação pareceria não estar funcionando. Daí a recomendação, dita na
+própria tela: marcar os links do perfil com `?utm_source=instagram`.
+
+**Contada uma vez por visitante**, no momento em que ele aparece pela primeira
+vez no dia. Contar a cada página diria de onde veio cada clique — e como a
+pessoa navega dentro do próprio site, quase tudo seria "interno".
+
+A soma das origens é exatamente o número de visitantes distintos. Essa
+igualdade é a verificação que sustenta o resto: se divergir, ou um visitante
+foi contado duas vezes, ou uma origem se perdeu.
+
+**Teto de 40 origens distintas por dia.** `utm_source` vem da URL, ou seja, de
+quem chega: sem teto, alguém gerando valores aleatórios encheria a tabela de
+medição e o custo seria nosso. Passando do teto, o excedente vira "outro" —
+perde-se detalhe, não se perde contagem, e a soma continua batendo.
+
+E na tela só as oito maiores, com o resto somado numa linha. A cauda longa não
+muda decisão nenhuma, e quarenta linhas dela empurrariam os assinantes para
+fora da tela — o mesmo erro que a tabela de dias já tinha cometido, repetido
+na primeira versão desta lista e corrigido pelo mesmo motivo.
 
 ### O que fica em aberto
 
 **`visitantes` cresce sem poda.** São poucas linhas por dia, mas nada as
 apaga. Uma faxina do que passou da janela de 14 dias resolve.
 
-**Origem do tráfego não é medida.** Não há `referer` guardado, então não dá
-para saber se a visita veio do Instagram, de busca ou de link direto — que é a
-pergunta seguinte assim que houver movimento.
+**`origens` também não tem poda**, e a linha "outro" mistura coisas distintas
+por desenho — é o preço do teto.
+
+**Nada distingue quem chegou pela vitrine de quem caiu direto numa página de
+produto.** A origem é do visitante, não da entrada, então não dá para saber
+qual página está sendo divulgada.

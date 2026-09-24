@@ -63,6 +63,20 @@
         </tbody>
       </table>
     </div>
+    <!-- De onde vieram. Ao lado do funil, porque só faz sentido junto: a
+         coluna de visitantes diz quantos, esta diz de onde, e é a combinação
+         que aponta onde investir esforço. -->
+    <div class="origens" th:if="${origens != null and not #lists.isEmpty(origens)}">
+      <h3 class="rotulo">De onde vieram</h3>
+      <ul class="lista-origens">
+        <li th:each="o : ${origens}">
+          <span class="origem-nome" th:text="${o.origem}">instagram</span>
+          <span class="origem-linha"></span>
+          <span class="origem-conta" th:text="${o.visitantes}">0</span>
+        </li>
+      </ul>
+    </div>
+
     <p class="texto-apoio nota-funil">
       <b>Visitantes</b> conta pessoas diferentes no dia, por endereço e navegador —
       sem cookie e sem script de terceiro. <b>Abriram o cadastro</b> é quem chegou na
@@ -72,6 +86,12 @@
       educado e erra o disfarçado, e esconder o número faria os outros parecerem
       mais limpos do que são. Dentro dos últimos 14 dias, quem não teve movimento
       nenhum não vira linha.
+      <br>
+      <b>De onde vieram</b> conta cada visitante uma vez, no dia em que aparece.
+      <b>direto</b> é quem digitou o endereço ou veio de um aplicativo que não informa
+      a procedência — o navegador do Instagram, por exemplo, costuma não informar.
+      Por isso vale marcar os links do perfil com <code>?utm_source=instagram</code>:
+      com isso eles aparecem separados, em vez de somarem em "direto".
     </p>
   </section>
 

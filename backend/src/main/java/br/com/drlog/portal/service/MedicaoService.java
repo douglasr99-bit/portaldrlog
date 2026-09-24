@@ -89,6 +89,48 @@ public class MedicaoService {
             quantos);
     }
 
+    /** Uma origem e quantos visitantes vieram dela na janela. */
+    public record Origem(String origem, long visitantes) {}
+
+    /**
+     * De onde vieram, somando a janela inteira.
+     *
+     * Somado, e não dia a dia, porque a pergunta é para onde direcionar
+     * esforço — e um dia isolado de uma origem nova não responde isso.
+     */
+    /**
+     * As principais, com o resto somado numa linha só.
+     *
+     * A cauda longa não informa: saber que uma origem trouxe um visitante não
+     * muda decisão nenhuma, e quarenta linhas dessas empurram a lista de
+     * assinantes para fora da tela — o mesmo erro que a tabela de dias já
+     * tinha cometido.
+     */
+    @Transactional(readOnly = true)
+    public List<Origem> principais(int janela, int quantas) {
+        List<Origem> todas = origens(janela);
+        if (todas.size() <= quantas) return todas;
+
+        List<Origem> topo = new java.util.ArrayList<>(todas.subList(0, quantas));
+        long resto = todas.subList(quantas, todas.size()).stream()
+                .mapToLong(Origem::visitantes).sum();
+        topo.add(new Origem("+ %d origens menores".formatted(todas.size() - quantas), resto));
+        return topo;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Origem> origens(int janela) {
+        return jdbc.query("""
+            select origem, sum(visitantes) as visitantes
+              from origens
+             where dia > current_date - ? * interval '1 day'
+             group by origem
+             order by 2 desc, 1
+            """,
+            (rs, n) -> new Origem(rs.getString("origem"), rs.getLong("visitantes")),
+            janela);
+    }
+
     /** Se já existe qualquer medição — antes disso a tabela na tela só confundiria. */
     @Transactional(readOnly = true)
     public boolean temDados() {

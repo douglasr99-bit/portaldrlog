@@ -42,7 +42,9 @@ public class FiltroDeVisitas extends OncePerRequestFilter {
             String caminho = classificar(req);
             if (caminho != null && resp.getStatus() < 400)
                 registro.registrar(caminho, enderecoDe(req), req.getHeader("User-Agent"),
-                                   pareceRobo(req.getHeader("User-Agent")));
+                                   pareceRobo(req.getHeader("User-Agent")),
+                                   req.getHeader("Referer"), req.getParameter("utm_source"),
+                                   req.getServerName());
         }
     }
 
