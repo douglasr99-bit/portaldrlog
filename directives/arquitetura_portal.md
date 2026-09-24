@@ -1976,3 +1976,102 @@ entra não a vê. Um aviso dois dias antes é barato e evita o susto.
 
 **Confirmação de e-mail continua sem existir.** Importa menos agora — o cartão
 verifica —, mas um endereço errado ainda impede o cliente de recuperar a senha.
+
+---
+
+## 25. Contagem de visitas
+
+Até aqui o Portal sabia quantas lojas assinaram e não sabia **de quantas
+pessoas**. Sem o topo do funil, um número baixo de cadastros não distingue
+duas situações que pedem ações opostas: ninguém está chegando, ou estão
+chegando e desistindo.
+
+### Por que no servidor
+
+Três coisas decidiram contra um serviço pronto:
+
+**A página é o argumento de venda.** A vitrine inteira existe para parecer
+confiável e não-genérica, para um público que já desconfia de assinatura
+mensal. Encher de rastreador de terceiro contradiz isso.
+
+**A VPS está no limite.** Auto-hospedar analítica tiraria memória de uma
+máquina que já sustenta Coolify, Traefik, PostgreSQL, Evolution, Styllus e
+Portal — e cada assinante novo ainda soma uma instância de WhatsApp, que é o
+que gera receita. Gastar RAM com medição é competir com o produto.
+
+**A pergunta é o funil, não o pageview.** O que decide ação é a comparação
+entre chegou, abriu o cadastro, criou conta e pagou. Isso o Portal já sabe
+quase todo; faltava só o começo.
+
+### Como conta sem identificar
+
+A marca de visitante é `SHA-256(dia | sal | endereço | navegador)`, truncada.
+Três decisões dentro disso:
+
+**O dia entra no hash**, então a marca perde o sentido amanhã. Serve para
+contar quantas pessoas diferentes vieram hoje, não para reconhecer quem voltou
+na semana passada.
+
+**O sal nasce no banco**, com valor aleatório na migração. Sem ele, varrer a
+faixa de IPv4 contra um hash conhecido é trabalho de minutos. E fica no banco,
+não em variável de ambiente, porque ali um deploy descuidado o trocaria — e
+todo visitante do dia passaria a contar dobrado.
+
+**O caminho é reduzido a rótulos** — `vitrine`, `produto`, `cadastro`,
+`login`, `painel`. Guardar a URL crua deixaria a cardinalidade solta: uma
+varredura de endereços inexistentes criaria milhares de linhas, e a tabela de
+medição viraria alvo de quem quisesse enchê-la.
+
+E o agregado é por `(dia, caminho)`, não uma linha por acesso. Uma linha por
+acesso guardaria muito mais sobre as pessoas e responderia exatamente às
+mesmas perguntas.
+
+### Robôs separados, não descartados
+
+A detecção por User-Agent acerta o robô educado e erra o disfarçado. Jogar
+fora o que ela pega faria os outros números parecerem mais limpos do que são,
+então eles ficam numa coluna própria. Robô não entra na conta de visitantes:
+inflaria o denominador e faria a conversão parecer pior do que é.
+
+*(Durante a verificação, a própria sonda de readiness — que usa `curl` —
+apareceu na coluna de robôs. A detecção estava certa.)*
+
+### Medir não pode atrasar nem derrubar
+
+A gravação é `@Async`, fora da linha da requisição, e o corpo inteiro está em
+try/catch que nunca propaga. Medição que derruba a página mede o quê?
+
+A contagem também só acontece **depois** da resposta e apenas quando o status
+é menor que 400 — página que falhou não é visita.
+
+### Dia parado não vira linha
+
+A primeira versão mostrava quatorze dias fixos. Com o site novo, isso era uma
+parede de zeros que empurrava a lista de assinantes para fora da tela —
+andaime vazio ocupando o lugar do conteúdo. Hoje aparece sempre, mesmo zerado,
+porque "ainda não veio ninguém hoje" é informação.
+
+### Verificação feita
+
+| Cenário | Resultado |
+| :--- | :--- |
+| Visitas à vitrine e ao cadastro | contadas nos rótulos certos |
+| Navegadores diferentes | contados como visitantes distintos |
+| Googlebot e `curl` | contados, na coluna de robôs |
+| Robôs na conta de visitantes | não entram |
+| CSS e rotas inexistentes | não viram linha |
+| Resposta 4xx | não conta visita |
+| Marca gravada | hash, sem endereço legível |
+| Sal | uma linha, criada pela migração |
+| Dias sem movimento | omitidos; hoje sempre presente |
+| Lista de assinantes | visível sem rolagem |
+| Erros de console | nenhum |
+
+### O que fica em aberto
+
+**`visitantes` cresce sem poda.** São poucas linhas por dia, mas nada as
+apaga. Uma faxina do que passou da janela de 14 dias resolve.
+
+**Origem do tráfego não é medida.** Não há `referer` guardado, então não dá
+para saber se a visita veio do Instagram, de busca ou de link direto — que é a
+pergunta seguinte assim que houver movimento.

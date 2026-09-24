@@ -29,15 +29,18 @@ public class AdminController {
     private final CobrancaService cobranca;
     private final TenantRepository tenants;
     private final ProdutoRepository produtos;
+    private final br.com.drlog.portal.service.MedicaoService medicao;
 
     public AdminController(AdminService admin, ProvisionamentoService provisionamento,
                            CobrancaService cobranca,
-                           TenantRepository tenants, ProdutoRepository produtos) {
+                           TenantRepository tenants, ProdutoRepository produtos,
+                           br.com.drlog.portal.service.MedicaoService medicao) {
         this.admin = admin;
         this.provisionamento = provisionamento;
         this.cobranca = cobranca;
         this.tenants = tenants;
         this.produtos = produtos;
+        this.medicao = medicao;
     }
 
     @GetMapping
@@ -48,6 +51,7 @@ public class AdminController {
         model.addAttribute("provisionamentos", admin.provisionamentosPorTenant());
         model.addAttribute("evolutionConfigurada", provisionamento.configurado());
         model.addAttribute("asaasConfigurado", cobranca.configurado());
+        model.addAttribute("funil", medicao.temDados() ? medicao.diasComMovimento(14) : null);
         return "admin/lista";
     }
 

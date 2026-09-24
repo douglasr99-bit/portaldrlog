@@ -349,3 +349,15 @@ select.entrada { appearance: none; }
 .elo-cancelar:hover { color: var(--acento, #C4502C); }
 
 .aviso-encerrando { opacity: .85; }
+
+/* O funil. Números alinhados à direita para que a coluna possa ser lida de
+   cima a baixo — é a comparação entre dias que diz alguma coisa, não o
+   número de um dia isolado. */
+.funil { margin-bottom: 40px; }
+.tabela-funil td.numero,
+.tabela-funil th { text-align: right; }
+.tabela-funil th:first-child,
+.tabela-funil td:first-child { text-align: left; }
+.tabela-funil td.numero { font-variant-numeric: tabular-nums; }
+.linha-vazia { opacity: .45; }
+.nota-funil { margin-top: 12px; font-size: 12.5px; line-height: 1.55; }

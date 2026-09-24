@@ -31,6 +31,50 @@
   <div class="alerta alerta-ok"   th:if="${sucesso}" role="status" th:text="${sucesso}"></div>
   <div class="alerta alerta-erro" th:if="${erro}"    role="alert"  th:text="${erro}"></div>
 
+  <!-- O funil vem antes da lista de assinantes de propósito: a lista diz quem
+       já é cliente, o funil diz se estão chegando. A segunda pergunta é a que
+       se faz todo dia. -->
+  <section class="funil" th:if="${funil != null}">
+    <h2 class="titulo-secao">Movimento</h2>
+    <div class="tabela-rolagem">
+      <table class="tabela tabela-funil">
+        <thead>
+          <tr>
+            <th>Dia</th>
+            <th>Visitantes</th>
+            <th>Vitrine</th>
+            <th>Abriram o cadastro</th>
+            <th>Criaram conta</th>
+            <th>Pagando</th>
+            <th>Robôs</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr th:each="d : ${funil}"
+              th:classappend="${d.visitantes == 0 and d.robos == 0} ? 'linha-vazia'">
+            <td th:text="${#temporals.format(d.dia, 'dd/MM')}">24/09</td>
+            <td class="numero" th:text="${d.visitantes}">0</td>
+            <td class="numero texto-fraco" th:text="${d.vitrine}">0</td>
+            <td class="numero" th:text="${d.cadastros}">0</td>
+            <td class="numero" th:text="${d.contas}">0</td>
+            <td class="numero" th:text="${d.ativas}">0</td>
+            <td class="numero texto-fraco" th:text="${d.robos}">0</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="texto-apoio nota-funil">
+      <b>Visitantes</b> conta pessoas diferentes no dia, por endereço e navegador —
+      sem cookie e sem script de terceiro. <b>Abriram o cadastro</b> é quem chegou na
+      tela de assinar; <b>criaram conta</b> é quem a preencheu. A distância entre
+      esses dois é o que o formulário e a exigência do cartão custam.
+      <b>Robôs</b> ficam separados em vez de descartados: a detecção acerta o robô
+      educado e erra o disfarçado, e esconder o número faria os outros parecerem
+      mais limpos do que são. Dentro dos últimos 14 dias, quem não teve movimento
+      nenhum não vira linha.
+    </p>
+  </section>
+
   <div class="cabecalho-admin">
     <h1 class="titulo">Assinantes</h1>
     <a class="botao botao-primario" th:href="@{/admin/novo}">Novo assinante</a>
