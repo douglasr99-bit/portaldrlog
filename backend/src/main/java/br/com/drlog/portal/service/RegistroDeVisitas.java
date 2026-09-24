@@ -60,28 +60,48 @@ public class RegistroDeVisitas {
             // Robô não entra na conta de visitantes: inflaria o denominador do
             // funil e faria a taxa de conversão parecer pior do que é.
             if (!robo) {
-                int novo = jdbc.update("""
+                String marca = marcaDe(dia, ip, navegador);
+                jdbc.update("""
                         insert into visitantes (dia, marca) values (?, ?)
                         on conflict do nothing
-                        """, dia, marcaDe(dia, ip, navegador));
-
-                // A origem é contada uma vez por visitante, no momento em que
-                // ele aparece pela primeira vez no dia. Contar a cada página
-                // diria de onde veio cada clique — e como a pessoa navega
-                // dentro do próprio site, quase tudo seria "interno".
-                if (novo == 1) {
-                    jdbc.update("""
-                            insert into origens (dia, origem, visitantes)
-                            values (?, ?, 1)
-                            on conflict (dia, origem)
-                            do update set visitantes = origens.visitantes + 1
-                            """, dia, origemDe(dia, referencia, campanha, meuHost));
-                }
+                        """, dia, marca);
+                registrarOrigem(dia, marca, origemDe(dia, referencia, campanha, meuHost));
             }
         } catch (Exception e) {
             // Nunca propaga. Medição que derruba a página mede o quê?
             log.debug("Não consegui registrar a visita a {}: {}", caminho, e.toString());
         }
+    }
+
+    /**
+     * Cada par visitante+origem, uma vez por dia.
+     *
+     * Não é "uma origem por visitante": quem entrou de manhã direto e voltou à
+     * tarde por um link de campanha chegou por dois caminhos, e os dois contam.
+     * Registrar só o primeiro fazia o clique da campanha sumir justamente para
+     * quem acompanha a marca de perto — o oposto do que se quer medir.
+     *
+     * Também não é "uma por acesso": clicar cinco vezes no mesmo link não são
+     * cinco chegadas.
+     *
+     * Navegação interna não é origem nenhuma e não entra. Sem essa exclusão,
+     * "interno" apareceria para todo visitante que abrisse uma segunda página
+     * e dominaria a lista.
+     */
+    private void registrarOrigem(LocalDate dia, String marca, String origem) {
+        if (origem == null || "interno".equals(origem)) return;
+
+        int nova = jdbc.update("""
+                insert into visitante_origem (dia, marca, origem) values (?, ?, ?)
+                on conflict do nothing
+                """, dia, marca, origem);
+        if (nova != 1) return;
+
+        jdbc.update("""
+                insert into origens (dia, origem, visitantes) values (?, ?, 1)
+                on conflict (dia, origem)
+                do update set visitantes = origens.visitantes + 1
+                """, dia, origem);
     }
 
     /**
@@ -127,6 +147,16 @@ public class RegistroDeVisitas {
     private static String normalizar(String s) {
         String limpo = s.toLowerCase().replaceAll("[^a-z0-9._-]", "");
         if (limpo.isBlank()) return "outro";
+        // Apelidos comuns viram o nome canônico. Duas linhas para a mesma
+        // origem não dividem só o número: dividem a comparação, que é o
+        // único motivo de a lista existir.
+        // Apenas correspondência exata. Um `startsWith` colapsaria
+        // "instagram-bio" e "instagram-stories" em "instagram" — e perder
+        // essa distinção é perder exatamente a comparação entre peças, que é
+        // para o que a marcação de campanha serve.
+        if (limpo.equals("ig"))  return "instagram";
+        if (limpo.equals("wpp") || limpo.equals("zap")) return "whatsapp";
+        if (limpo.equals("fb"))  return "facebook";
         return limpo.length() > 40 ? limpo.substring(0, 40) : limpo;
     }
 

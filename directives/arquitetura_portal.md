@@ -2085,13 +2085,31 @@ medir. Sem ler `utm_source`, o tráfego do Instagram apareceria como "direto" e
 a divulgação pareceria não estar funcionando. Daí a recomendação, dita na
 própria tela: marcar os links do perfil com `?utm_source=instagram`.
 
-**Contada uma vez por visitante**, no momento em que ele aparece pela primeira
-vez no dia. Contar a cada página diria de onde veio cada clique — e como a
-pessoa navega dentro do próprio site, quase tudo seria "interno".
+**Contada uma vez por par visitante+origem, por dia.** A primeira versão
+contava só na primeira aparição do visitante no dia, e isso estava errado de
+um jeito que só apareceu em produção: quem já tinha entrado no site naquele
+dia e depois voltava por um link de campanha **não era contado em lugar
+nenhum**. O clique sumia.
 
-A soma das origens é exatamente o número de visitantes distintos. Essa
-igualdade é a verificação que sustenta o resto: se divergir, ou um visitante
-foi contado duas vezes, ou uma origem se perdeu.
+O efeito era o inverso do objetivo — quanto mais alguém acompanhasse a marca,
+menos as chegadas dela apareceriam. E foi assim que o primeiro teste real com
+`?utm_source=instagram` não produziu linha nenhuma.
+
+Também não é uma contagem por acesso: clicar cinco vezes no mesmo link não são
+cinco chegadas.
+
+**Navegação interna não é origem** e não entra. Sem essa exclusão, "interno"
+apareceria para todo visitante que abrisse uma segunda página e dominaria a
+lista.
+
+Por consequência, **a soma das origens pode passar do número de visitantes** —
+quem chegou por dois caminhos aparece nos dois. A tela diz isso, porque um
+número que não fecha sem explicação faz duvidar da medição inteira.
+
+**Apelidos viram o nome canônico**, mas só por igualdade exata: `ig` vira
+`instagram`, e `instagram-bio` continua sendo `instagram-bio`. Um
+`startsWith` colapsaria as peças de campanha entre si e destruiria justamente
+a comparação para a qual a marcação serve.
 
 **Teto de 40 origens distintas por dia.** `utm_source` vem da URL, ou seja, de
 quem chega: sem teto, alguém gerando valores aleatórios encheria a tabela de
